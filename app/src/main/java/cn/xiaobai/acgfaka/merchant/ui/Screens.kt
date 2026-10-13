@@ -21,6 +21,14 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private fun money(o: JSONObject, key: String): String = Json.str(o, key, "0")
+private fun htmlClean(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    var s = raw
+    s = s.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
+    s = s.replace(Regex("<[^>]+>"), "")
+    s = s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+    return s.trim()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -300,7 +308,7 @@ private fun LazyColumnOfPlugins(list: List<JSONObject>, onToggle: (String, Boole
         items(list.size) { i ->
             val o = list[i]
             val id = Json.str(o, "PLUGIN_NAME", Json.str(o, "id"))
-            val name = Json.str(o, "NAME", id)
+            val name = htmlClean(Json.str(o, "NAME", id))
             val cfg = o.optJSONObject("PLUGIN_CONFIG") ?: JSONObject()
             val active = Json.int(cfg, "STATUS") == 1
             Card(Modifier.fillMaxWidth()) {
@@ -372,8 +380,8 @@ fun StoreScreen(nav: NavController) {
             ) {
                 items(list.size) { i ->
                     val o = list[i]
-                    val name = Json.str(o, "plugin_name", Json.str(o, "name", "插件"))
-                    val desc = Json.str(o, "description")
+                    val name = htmlClean(Json.str(o, "plugin_name", Json.str(o, "name", "插件")))
+                    val desc = htmlClean(Json.str(o, "description"))
                     val author = Json.str(o, "author")
                     val version = Json.str(o, "version")
                     val localVersion = Json.str(o, "local_version")
