@@ -4,15 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 android {
-    namespace = "cn.xiaobai.acgfaka.merchant"
+    namespace = "cn.xiaobai.acgfaka.admin"
     compileSdk = 35
     defaultConfig {
-        applicationId = "cn.xiaobai.acgfaka.merchant"
+        applicationId = "cn.xiaobai.acgfaka.admin"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
-        // ========== 固定服务器地址 ==========
         buildConfigField("String", "DEFAULT_SERVER", "\"http://192.168.31.187:3555\"")
     }
     buildFeatures {
@@ -34,12 +33,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.5")
-    implementation("androidx.datastore:datastore-preferences:1.1.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil:2.7.0")
-    implementation("com.google.code.gson:gson:2.11.0")
 }
