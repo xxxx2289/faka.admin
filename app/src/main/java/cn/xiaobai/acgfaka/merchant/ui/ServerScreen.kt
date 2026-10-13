@@ -1,4 +1,4 @@
-package cn.xiaobai.acgfaka.merchant.ui
+package cn.xiaobai.acgfaka.admin.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -10,10 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import cn.xiaobai.acgfaka.merchant.BuildConfig
-import cn.xiaobai.acgfaka.merchant.core.Api
-import cn.xiaobai.acgfaka.merchant.core.Http
-import cn.xiaobai.acgfaka.merchant.core.Session
+import cn.xiaobai.acgfaka.admin.BuildConfig
+import cn.xiaobai.acgfaka.admin.core.Api
+import cn.xiaobai.acgfaka.admin.core.Http
+import cn.xiaobai.acgfaka.admin.core.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,9 +49,7 @@ fun ServerScreen(nav: NavController) {
             OutlinedTextField(
                 value = url, onValueChange = { url = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("地址") },
-                placeholder = { Text(BuildConfig.DEFAULT_SERVER) },
-                singleLine = true
+                label = { Text("地址") }, singleLine = true
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
@@ -61,9 +59,9 @@ fun ServerScreen(nav: NavController) {
                             try {
                                 val norm = Http.normalize(url)
                                 Http.baseUrl = norm
-                                val info = withContext(Dispatchers.IO) { Api.siteInfo() }
+                                withContext(Dispatchers.IO) { Api.dashboardData(0) }
                                 Session.saveServer(ctx, norm)
-                                msg = "连接成功：${info.shopName}"; isError = false
+                                msg = "连接成功"; isError = false
                             } catch (e: Exception) { msg = "连接失败：${e.message}"; isError = true } finally { busy = false }
                         }
                     },
@@ -82,14 +80,14 @@ fun ServerScreen(nav: NavController) {
                         Session.saveServer(ctx, "")
                         Http.baseUrl = BuildConfig.DEFAULT_SERVER
                         url = BuildConfig.DEFAULT_SERVER
-                        msg = "已恢复默认地址"; isError = false
+                        msg = "已恢复默认"; isError = false
                     },
                     enabled = !busy
                 ) { Text("恢复默认") }
             }
             msg?.let { Text(it, color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) }
             Divider()
-            Text("提示：默认地址已固定在 App 里，日常使用无需修改。", style = MaterialTheme.typography.labelSmall)
+            Text("提示：测试「保存并测试」会调用经营概览接口，未登录会提示会话失效，属正常。", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

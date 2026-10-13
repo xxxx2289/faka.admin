@@ -1,4 +1,4 @@
-package cn.xiaobai.acgfaka.merchant.ui
+package cn.xiaobai.acgfaka.admin.ui
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -16,9 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import cn.xiaobai.acgfaka.merchant.core.Api
-import cn.xiaobai.acgfaka.merchant.core.Http
-import cn.xiaobai.acgfaka.merchant.core.Session
+import cn.xiaobai.acgfaka.admin.core.Api
+import cn.xiaobai.acgfaka.admin.core.Http
+import cn.xiaobai.acgfaka.admin.core.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,7 +50,7 @@ fun LoginScreen(nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("商家登录") },
+                title = { Text("管理员登录") },
                 navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } }
             )
         }
@@ -59,8 +59,8 @@ fun LoginScreen(nav: NavController) {
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("使用已开通商家/分站的账号登录", style = MaterialTheme.typography.bodyMedium)
-            OutlinedTextField(username, { username = it }, Modifier.fillMaxWidth(), label = { Text("用户名 / 邮箱") }, singleLine = true)
+            Text("平台管理员账号登录", style = MaterialTheme.typography.bodyMedium)
+            OutlinedTextField(username, { username = it }, Modifier.fillMaxWidth(), label = { Text("管理员账号") }, singleLine = true)
             OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("密码") }, singleLine = true, visualTransformation = PasswordVisualTransformation())
             OutlinedTextField(captcha, { captcha = it }, Modifier.fillMaxWidth(), label = { Text("图形验证码") }, singleLine = true)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -95,7 +95,7 @@ fun LoginScreen(nav: NavController) {
                 enabled = !busy && username.isNotBlank() && password.isNotBlank() && captcha.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) { Text(if (busy) "登录中…" else "登录") }
-            Text("商家端复用前台账号体系，验证码 action=login。", style = MaterialTheme.typography.labelSmall)
+            Text("平台后台账号与前台用户账号完全独立。验证码 action=adminLogin。", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

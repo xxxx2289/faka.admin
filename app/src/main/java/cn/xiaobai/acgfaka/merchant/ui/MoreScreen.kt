@@ -1,4 +1,4 @@
-package cn.xiaobai.acgfaka.merchant.ui
+package cn.xiaobai.acgfaka.admin.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,34 +12,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import cn.xiaobai.acgfaka.merchant.core.Http
-import cn.xiaobai.acgfaka.merchant.core.Session
+import cn.xiaobai.acgfaka.admin.core.Http
+import cn.xiaobai.acgfaka.admin.core.Session
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreScreen(nav: NavController) {
     val ctx = LocalContext.current
+    val loggedIn = Session.isLoggedIn(ctx)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopAppBar(title = { Text("更多功能") })
         Entry(Icons.Default.Key, "卡密管理") { nav.navigate("cards") }
-        Entry(Icons.Default.Category, "分类管理") { nav.navigate("categories") }
-        Entry(Icons.Default.AccountBalanceWallet, "账单明细") { nav.navigate("bills") }
+        Entry(Icons.Default.Inventory2, "商品管理") { nav.navigate("commodities") }
+        Entry(Icons.Default.AccountBalanceWallet, "提现审核") { nav.navigate("cash") }
+        Entry(Icons.Default.Article, "操作日志") { nav.navigate("logs") }
+        Entry(Icons.Default.Extension, "插件管理") { nav.navigate("plugins") }
         Entry(Icons.Default.Settings, "服务器设置") { nav.navigate("server") }
-        Entry(Icons.Default.Logout, "退出登录") {
-            Http.clearSession()
-            Session.setLoggedIn(ctx, false)
-            Session.saveUsername(ctx, "")
-            nav.navigate("dashboard") { popUpTo("dashboard") { inclusive = true } }
+        if (loggedIn) {
+            Entry(Icons.Default.Logout, "退出登录") {
+                Http.clearSession()
+                Session.setLoggedIn(ctx, false)
+                Session.saveUsername(ctx, "")
+                nav.navigate("dashboard") { popUpTo("dashboard") { inclusive = true } }
+            }
+        } else {
+            Entry(Icons.Default.Login, "管理员登录") { nav.navigate("login") }
         }
         Spacer(Modifier.height(24.dp))
-        Text("异次元商家端 v1.0.0", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(16.dp))
+        Text("异次元后台 v1.0.0", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(16.dp))
     }
 }
 
 @Composable
 private fun Entry(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(16.dp))
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
