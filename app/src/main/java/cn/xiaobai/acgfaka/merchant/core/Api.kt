@@ -109,4 +109,50 @@ object Api {
         val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
         return StoreResult(list, data.optInt("total", list.size))
     }
+
+    // ---------- 会员管理扩展 ----------
+
+    /** 会员数据统计（交易额），GET 带 id */
+    fun userStatistics(id: Int): JSONObject =
+        Http.getSync("/admin/api/user/statistics", mapOf("id" to id.toString())).optJSONObject("data") ?: JSONObject()
+
+    /**
+     * 余额变动。action: 1=增加 0=扣减；amount 正数，最多两位小数；log 2-64 字。
+     * total: 是否计入累计统计。
+     */
+    fun userBalance(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String {
+        return Http.postSync("/admin/api/user/recharge", mapOf(
+            "id" to id.toString(),
+            "action" to if (add) "1" else "0",
+            "amount" to amount.toString(),
+            "log" to log,
+            "total" to if (total) "1" else "0"
+        )).optString("msg", "操作成功")
+    }
+
+    /** 硬币变动。参数同余额。仅站长本人可调。 */
+    fun userCoin(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String {
+        return Http.postSync("/admin/api/user/coin", mapOf(
+            "id" to id.toString(),
+            "action" to if (add) "1" else "0",
+            "amount" to amount.toString(),
+            "log" to log,
+            "total" to if (total) "1" else "0"
+        )).optString("msg", "操作成功")
+    }
+
+    /** 会员资料保存：可改 username/email/phone/qq/password/status(0封禁1正常)/pid/group_id/business_level */
+    fun userSave(fields: Map<String, String>): String =
+        Http.postSync("/admin/api/user/save", fields).optString("msg", "已保存")
+
+    /** 启用/停用会员 */
+    fun userSetStatus(id: Int, status: Int): String =
+        Http.postSync("/admin/api/user/save", mapOf("id" to id.toString(), "status" to status.toString())).optString("msg", "已更新")
+
+    /** 删除会员，list[] 数组 */
+    fun userDelete(ids: List<Int>): String {
+        val params = mutableMapOf<String, String>()
+        ids.forEachIndexed { i, id -> params["list[$i]"] = id.toString() }
+        return Http.postSync("/admin/api/user/del", params).optString("msg", "已删除")
+    }
 }
