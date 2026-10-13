@@ -10,18 +10,39 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import cn.xiaobai.acgfaka.admin.core.Api
+import cn.xiaobai.acgfaka.admin.core.AppState
 import cn.xiaobai.acgfaka.admin.core.Http
 import cn.xiaobai.acgfaka.admin.core.Session
 import cn.xiaobai.acgfaka.admin.ui.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppTheme { AppRoot() } }
+
+        // 每次回到前台检查会话是否被服务端锁定
+        lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) {
+                if (!Session.isLoggedIn(this@MainActivity)) return
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val locked = Api.lockStatus()
+                        withContext(Dispatchers.Main) { AppState.locked = locked }
+                    } catch (_: Exception) {}
+                }
+            }
+        })
     }
 }
 
@@ -35,6 +56,12 @@ private fun AppRoot() {
     val current = backStack?.destination?.route
 
     LaunchedEffect(Unit) { Http.baseUrl = Session.server(ctx) }
+
+    // 锁定则覆盖显示锁屏
+    if (AppState.locked) {
+        LockScreen(onUnlocked = { AppState.locked = false })
+        return
+    }
 
     val tabs = listOf(
         Tab("dashboard", "概览", Icons.Default.Dashboard),
