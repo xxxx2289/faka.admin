@@ -96,6 +96,7 @@ private fun AppRoot() {
             composable("logs") { LogsScreen(nav) }
             composable("plugins") { PluginsScreen(nav) }
             composable("store") { StoreScreen(nav) }
+            composable("pay") { PayScreen(nav) }
             composable("more") { MoreScreen(nav) }
             composable("login") { LoginScreen(nav) }
             composable("server") { ServerScreen(nav) }
