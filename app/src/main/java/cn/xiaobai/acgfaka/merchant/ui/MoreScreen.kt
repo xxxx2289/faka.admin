@@ -27,6 +27,7 @@ fun MoreScreen(nav: NavController) {
         Entry(Icons.Default.AccountBalanceWallet, "提现审核") { nav.navigate("cash") }
         Entry(Icons.Default.Article, "操作日志") { nav.navigate("logs") }
         Entry(Icons.Default.Extension, "插件管理") { nav.navigate("plugins") }
+        Entry(Icons.Default.Storefront, "应用商店") { nav.navigate("store") }
         Entry(Icons.Default.Settings, "服务器设置") { nav.navigate("server") }
         if (loggedIn) {
             Entry(Icons.Default.Logout, "退出登录") {

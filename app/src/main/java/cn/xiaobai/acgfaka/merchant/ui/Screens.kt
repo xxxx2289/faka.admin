@@ -315,3 +315,95 @@ private fun LazyColumnOfPlugins(list: List<JSONObject>, onToggle: (String, Boole
         }
     }
 }
+
+// ---------- 应用商店 ----------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StoreScreen(nav: NavController) {
+    val scope = rememberCoroutineScope()
+    var group by remember { mutableIntStateOf(0) }
+    var keyword by remember { mutableStateOf("") }
+    var list by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var total by remember { mutableIntStateOf(0) }
+    var page by remember { mutableIntStateOf(1) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val pageSize = 15
+
+    fun load(p: Int) {
+        scope.launch {
+            loading = true; error = null
+            try {
+                if (Http.baseUrl.isBlank()) { error = "请先配置服务器地址"; loading = false; return@launch }
+                val res = withContext(Dispatchers.IO) { Api.appStore(p, pageSize, keyword, group) }
+                list = res.list; total = res.total; page = p
+            } catch (e: Exception) { error = e.message } finally { loading = false }
+        }
+    }
+
+    LaunchedEffect(group) { load(1) }
+
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text("应用商店") },
+            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
+            actions = { IconButton(onClick = { load(page) }) { Icon(Icons.Default.Refresh, "刷新") } }
+        )
+        ScrollableTabRow(selectedTabIndex = group) {
+            listOf("插件" to 0, "支付" to 1, "主题" to 2).forEach { (label, g) ->
+                Tab(selected = group == g, onClick = { group = g }, text = { Text(label) })
+            }
+        }
+        OutlinedTextField(
+            value = keyword, onValueChange = { keyword = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            label = { Text("搜索") }, singleLine = true,
+            trailingIcon = { TextButton(onClick = { load(1) }) { Text("搜索") } }
+        )
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 12.dp)) }
+        if (list.isEmpty() && !loading && error == null) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("商店暂无内容") }
+        } else {
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(list.size) { i ->
+                    val o = list[i]
+                    val name = Json.str(o, "plugin_name", Json.str(o, "name", "插件"))
+                    val desc = Json.str(o, "description")
+                    val author = Json.str(o, "author")
+                    val version = Json.str(o, "version")
+                    val localVersion = Json.str(o, "local_version")
+                    val installed = Json.int(o, "install") == 1
+                    val price = Json.str(o, "price", Json.str(o, "amount"))
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
+                                AssistChip(onClick = {}, label = { Text(if (installed) "已安装" else "未安装") })
+                            }
+                            if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                            Row {
+                                if (author.isNotBlank()) Text("作者：" + author, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                if (version.isNotBlank()) Text("版本：" + version, style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (localVersion.isNotBlank()) Text("本地版本：" + localVersion, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (price.isNotBlank() && price != "0" && price != "0.00") Text("价格：¥" + price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("第 " + page + " 页 · 共 " + total + " 条", style = MaterialTheme.typography.labelMedium)
+            Row {
+                OutlinedButton(onClick = { load(page - 1) }, enabled = !loading && page > 1) { Text("上一页") }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = { load(page + 1) }, enabled = !loading && page * pageSize < total) { Text("下一页") }
+            }
+        }
+    }
+}
