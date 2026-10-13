@@ -25,6 +25,7 @@ fun MoreScreen(nav: NavController) {
         Entry(Icons.Default.Key, "卡密管理") { nav.navigate("cards") }
         Entry(Icons.Default.Inventory2, "商品管理") { nav.navigate("commodities") }
         Entry(Icons.Default.AccountBalanceWallet, "提现审核") { nav.navigate("cash") }
+        Entry(Icons.Default.Payment, "支付设置") { nav.navigate("pay") }
         Entry(Icons.Default.Article, "操作日志") { nav.navigate("logs") }
         Entry(Icons.Default.Extension, "插件管理") { nav.navigate("plugins") }
         Entry(Icons.Default.Storefront, "应用商店") { nav.navigate("store") }

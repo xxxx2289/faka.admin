@@ -253,6 +253,7 @@ fun PluginsScreen(nav: NavController) {
     var list by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var detail by remember { mutableStateOf<JSONObject?>(null) }
 
     fun load() {
         scope.launch {
@@ -265,45 +266,229 @@ fun PluginsScreen(nav: NavController) {
     }
     LaunchedEffect(Unit) { load() }
 
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("插件管理") },
-            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } }
-        )
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
-        LazyColumnOfPlugins(list, onToggle = { id, v ->
-            scope.launch {
-                runCatching { withContext(Dispatchers.IO) { Api.pluginSetConfig(id, v) } }
-                load()
-            }
-        })
-    }
-}
-
-@Composable
-private fun LazyColumnOfPlugins(list: List<JSONObject>, onToggle: (String, Boolean) -> Unit) {
-    androidx.compose.foundation.lazy.LazyColumn(
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(list.size) { i ->
-            val o = list[i]
-            val id = Json.str(o, "PLUGIN_NAME", Json.str(o, "id"))
-            val name = htmlClean(Json.str(o, "NAME", id))
-            val cfg = o.optJSONObject("PLUGIN_CONFIG") ?: JSONObject()
-            val active = Json.int(cfg, "STATUS") == 1
-            Card(Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(name, fontWeight = FontWeight.SemiBold)
-                        Text(id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("插件管理") },
+                navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
+                actions = { IconButton(onClick = { load() }) { Icon(Icons.Default.Refresh, "刷新") } }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp)) }
+            if (list.isEmpty() && !loading && error == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("暂无已安装插件") }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(list.size) { i ->
+                        val o = list[i]
+                        val id = Json.str(o, "PLUGIN_NAME", Json.str(o, "id"))
+                        val name = htmlClean(Json.str(o, "NAME", id))
+                        val desc = htmlClean(Json.str(o, "DESCRIPTION"))
+                        val ver = Json.str(o, "VERSION")
+                        val cfg = o.optJSONObject("PLUGIN_CONFIG") ?: JSONObject()
+                        val active = Json.int(cfg, "STATUS") == 1
+                        Card(onClick = { detail = o }, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(name, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                                    AssistChip(onClick = {}, label = { Text(if (active) "运行中" else "未启用") })
+                                }
+                                if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                Text("标识 " + id + (if (ver.isNotBlank()) " · v" + ver else ""), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
-                    Switch(checked = active, onCheckedChange = { v -> onToggle(id, v) })
                 }
             }
         }
     }
+
+    detail?.let { o ->
+        PluginDetailDialog(
+            plugin = o,
+            onDismiss = { detail = null },
+            onChanged = { detail = null; load() }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PluginDetailDialog(
+    plugin: JSONObject,
+    onDismiss: () -> Unit,
+    onChanged: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val id = Json.str(plugin, "PLUGIN_NAME", Json.str(plugin, "id"))
+    val name = htmlClean(Json.str(plugin, "NAME", id))
+    val desc = htmlClean(Json.str(plugin, "DESCRIPTION"))
+    val ver = Json.str(plugin, "VERSION")
+    val cfg = plugin.optJSONObject("PLUGIN_CONFIG") ?: JSONObject()
+    var active by remember { mutableStateOf(Json.int(cfg, "STATUS") == 1) }
+    var top by remember { mutableStateOf(Json.int(cfg, "top") == 1) }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var showConfig by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(name) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall)
+                DetailRow("标识", id)
+                DetailRow("版本", ver.ifBlank { "-" })
+                DetailRow("状态", if (active) "运行中" else "未启用")
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("启用插件", Modifier.weight(1f))
+                    Switch(checked = active, onCheckedChange = { v ->
+                        active = v
+                        scope.launch {
+                            busy = true
+                            runCatching { withContext(Dispatchers.IO) { Api.pluginSetConfig(id, v) } }
+                                .onSuccess { msg = if (v) "已启用" else "已停用" }
+                                .onFailure { msg = it.message }
+                            busy = false
+                            onChanged()
+                        }
+                    })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("置顶显示", Modifier.weight(1f))
+                    Switch(checked = top, onCheckedChange = { v ->
+                        top = v
+                        scope.launch {
+                            busy = true
+                            runCatching { withContext(Dispatchers.IO) { Api.pluginSaveConfig(id, mapOf("top" to if (v) "1" else "0")) } }
+                                .onSuccess { msg = "已更新置顶" }
+                                .onFailure { msg = it.message }
+                            busy = false
+                        }
+                    })
+                }
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                Spacer(Modifier.height(6.dp))
+                Text("可用操作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { showConfig = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("配置插件") }
+                    OutlinedButton(onClick = { showLog = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("查看日志") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+
+    if (showConfig) PluginConfigDialog(id, cfg, { showConfig = false }, onChanged)
+    if (showLog) PluginLogDialog(id, { showLog = false })
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PluginConfigDialog(handle: String, cfg: JSONObject, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    // 把配置项转成可编辑字段，排除内部键
+    val skip = setOf("STATUS", "top", "VERSION", "name", "description")
+    val fields = remember(cfg) {
+        val m = linkedMapOf<String, String>()
+        val keys = cfg.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            if (k in skip) continue
+            val v = cfg.opt(k)
+            if (v is String || v is Number || v is Boolean) m[k] = v.toString()
+        }
+        m
+    }
+    val values = remember { mutableStateMapOf<String, String>().apply { putAll(fields) } }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("配置插件") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (values.isEmpty()) Text("该插件无可编辑配置")
+                values.forEach { (k, v) ->
+                    OutlinedTextField(
+                        value = v,
+                        onValueChange = { values[k] = it },
+                        label = { Text(k) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        busy = true; msg = null
+                        runCatching { withContext(Dispatchers.IO) { Api.pluginSaveConfig(handle, values.toMap()) } }
+                            .onSuccess { msg = it; onSaved(); onDismiss() }
+                            .onFailure { msg = it.message }
+                        busy = false
+                    }
+                },
+                enabled = !busy
+            ) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PluginLogDialog(handle: String, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var log by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun load() {
+        scope.launch {
+            loading = true; error = null
+            try { log = withContext(Dispatchers.IO) { Api.pluginLog(handle) } }
+            catch (e: Exception) { error = e.message } finally { loading = false }
+        }
+    }
+    LaunchedEffect(handle) { load() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("插件日志") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (loading) CircularProgressIndicator()
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (!loading && log.isBlank() && error == null) Text("暂无日志")
+                if (log.isNotBlank()) Text(log, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = {
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.IO) { Api.pluginClearLog(handle) } }
+                        load()
+                    }
+                }) { Text("清空") }
+                TextButton(onClick = onDismiss) { Text("关闭") }
+            }
+        }
+    )
+}
 }
 
 // ---------- 应用商店 ----------
@@ -318,6 +503,7 @@ fun StoreScreen(nav: NavController) {
     var page by remember { mutableIntStateOf(1) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var msg by remember { mutableStateOf<String?>(null) }
     val pageSize = 15
 
     fun load(p: Int) {
@@ -333,67 +519,376 @@ fun StoreScreen(nav: NavController) {
 
     LaunchedEffect(group) { load(1) }
 
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("应用商店") },
-            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
-            actions = { IconButton(onClick = { load(page) }) { Icon(Icons.Default.Refresh, "刷新") } }
-        )
-        ScrollableTabRow(selectedTabIndex = group) {
-            listOf("插件" to 0, "支付" to 1, "主题" to 2).forEach { (label, g) ->
-                Tab(selected = group == g, onClick = { group = g }, text = { Text(label) })
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("应用商店") },
+                navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
+                actions = { IconButton(onClick = { load(page) }) { Icon(Icons.Default.Refresh, "刷新") } }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            ScrollableTabRow(selectedTabIndex = group) {
+                listOf("插件" to 0, "支付" to 1, "主题" to 2).forEach { (label, g) ->
+                    Tab(selected = group == g, onClick = { group = g }, text = { Text(label) })
+                }
+            }
+            OutlinedTextField(
+                value = keyword, onValueChange = { keyword = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                label = { Text("搜索") }, singleLine = true,
+                trailingIcon = { TextButton(onClick = { load(1) }) { Text("搜索") } }
+            )
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 12.dp)) }
+            msg?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 12.dp)) }
+            if (list.isEmpty() && !loading && error == null) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("商店暂无内容") }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(list.size) { i ->
+                        val o = list[i]
+                        val name = htmlClean(Json.str(o, "plugin_name", Json.str(o, "name", "插件")))
+                        val desc = htmlClean(Json.str(o, "description"))
+                        val author = Json.str(o, "author")
+                        val version = Json.str(o, "version")
+                        val localVersion = Json.str(o, "local_version")
+                        val installed = Json.int(o, "install") == 1
+                        val price = Json.str(o, "price", Json.str(o, "amount"))
+                        val pluginKey = Json.str(o, "plugin_key", Json.str(o, "key"))
+                        val pluginId = Json.int(o, "id", Json.int(o, "plugin_id"))
+                        val hasUpdate = version.isNotBlank() && localVersion.isNotBlank() && version != localVersion
+                        val paid = price.isNotBlank() && price != "0" && price != "0.00"
+
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
+                                    AssistChip(onClick = {}, label = { Text(if (installed) "已安装" else "未安装") })
+                                }
+                                if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                                Row {
+                                    if (author.isNotBlank()) Text("作者：" + author, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                    if (version.isNotBlank()) Text("版本：" + version, style = MaterialTheme.typography.labelSmall)
+                                }
+                                if (localVersion.isNotBlank()) Text("本地版本：" + localVersion, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (paid) Text("价格：¥" + price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    if (!installed) {
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    loading = true; msg = null
+                                                    runCatching { withContext(Dispatchers.IO) { Api.appInstall(pluginKey, group, pluginId) } }
+                                                        .onSuccess { msg = "安装完成"; load(page) }
+                                                        .onFailure { error = it.message }
+                                                    loading = false
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text(if (paid) "购买并安装" else "安装") }
+                                    } else if (hasUpdate) {
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    loading = true; msg = null
+                                                    runCatching { withContext(Dispatchers.IO) { Api.appUpgrade(pluginKey, group, pluginId) } }
+                                                        .onSuccess { msg = "更新完成"; load(page) }
+                                                        .onFailure { error = it.message }
+                                                    loading = false
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) { Text("更新到 " + version) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("第 " + page + " 页 · 共 " + total + " 条", style = MaterialTheme.typography.labelMedium)
+                Row {
+                    OutlinedButton(onClick = { load(page - 1) }, enabled = !loading && page > 1) { Text("上一页") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { load(page + 1) }, enabled = !loading && page * pageSize < total) { Text("下一页") }
+                }
             }
         }
-        OutlinedTextField(
-            value = keyword, onValueChange = { keyword = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-            label = { Text("搜索") }, singleLine = true,
-            trailingIcon = { TextButton(onClick = { load(1) }) { Text("搜索") } }
-        )
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 12.dp)) }
-        if (list.isEmpty() && !loading && error == null) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("商店暂无内容") }
-        } else {
-            androidx.compose.foundation.lazy.LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(list.size) { i ->
-                    val o = list[i]
-                    val name = htmlClean(Json.str(o, "plugin_name", Json.str(o, "name", "插件")))
-                    val desc = htmlClean(Json.str(o, "description"))
-                    val author = Json.str(o, "author")
-                    val version = Json.str(o, "version")
-                    val localVersion = Json.str(o, "local_version")
-                    val installed = Json.int(o, "install") == 1
-                    val price = Json.str(o, "price", Json.str(o, "amount"))
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
-                                AssistChip(onClick = {}, label = { Text(if (installed) "已安装" else "未安装") })
+    }
+}
+
+// ---------- 支付设置 ----------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PayScreen(nav: NavController) {
+    val scope = rememberCoroutineScope()
+    var list by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var detail by remember { mutableStateOf<JSONObject?>(null) }
+    var showPlugins by remember { mutableStateOf(false) }
+
+    fun load() {
+        scope.launch {
+            loading = true; error = null
+            try {
+                if (Http.baseUrl.isBlank()) { error = "请先配置服务器地址"; loading = false; return@launch }
+                list = withContext(Dispatchers.IO) { Api.payList(1, 50).list }
+            } catch (e: Exception) { error = e.message } finally { loading = false }
+        }
+    }
+    LaunchedEffect(Unit) { load() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("支付设置") },
+                navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
+                actions = {
+                    IconButton(onClick = { load() }) { Icon(Icons.Default.Refresh, "刷新") }
+                    IconButton(onClick = { showPlugins = true }) { Icon(Icons.Default.Add, "新增") }
+                }
+            )
+        }
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 12.dp)) }
+            msg?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 12.dp)) }
+            if (list.isEmpty() && !loading && error == null) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("暂无支付接口") }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(list.size) { i ->
+                        val o = list[i]
+                        val id = Json.int(o, "id")
+                        val name = htmlClean(Json.str(o, "name"))
+                        val handle = Json.str(o, "handle")
+                        val commodity = Json.int(o, "commodity") == 1
+                        val recharge = Json.int(o, "recharge") == 1
+                        Card(onClick = { detail = o }, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(name, fontWeight = FontWeight.SemiBold)
+                                Text("插件 " + handle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    if (commodity) AssistChip(onClick = {}, label = { Text("商品下单") })
+                                    if (recharge) AssistChip(onClick = {}, label = { Text("余额充值") })
+                                }
                             }
-                            if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                            Row {
-                                if (author.isNotBlank()) Text("作者：" + author, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                                if (version.isNotBlank()) Text("版本：" + version, style = MaterialTheme.typography.labelSmall)
-                            }
-                            if (localVersion.isNotBlank()) Text("本地版本：" + localVersion, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (price.isNotBlank() && price != "0" && price != "0.00") Text("价格：¥" + price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("第 " + page + " 页 · 共 " + total + " 条", style = MaterialTheme.typography.labelMedium)
-            Row {
-                OutlinedButton(onClick = { load(page - 1) }, enabled = !loading && page > 1) { Text("上一页") }
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = { load(page + 1) }, enabled = !loading && page * pageSize < total) { Text("下一页") }
+    }
+
+    if (showPlugins) {
+        PayPluginPicker(
+            onDismiss = { showPlugins = false },
+            onPick = { handle, name ->
+                scope.launch {
+                    loading = true; msg = null
+                    runCatching { withContext(Dispatchers.IO) { Api.paySave(mapOf("name" to name, "handle" to handle, "commodity" to "1")) } }
+                        .onSuccess { msg = "已新增支付接口"; load() }
+                        .onFailure { error = it.message }
+                    loading = false
+                }
+                showPlugins = false
             }
+        )
+    }
+
+    detail?.let { o ->
+        PayDetailDialog(
+            pay = o,
+            onDismiss = { detail = null },
+            onChanged = { m -> msg = m; detail = null; load() },
+            onError = { e -> error = e; detail = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PayPluginPicker(onDismiss: () -> Unit, onPick: (String, String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var plugins by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            loading = true
+            plugins = withContext(Dispatchers.IO) { runCatching { Api.payPlugins() }.getOrDefault(emptyList()) }
+            loading = false
         }
     }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择支付插件") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (loading) CircularProgressIndicator()
+                if (!loading && plugins.isEmpty()) Text("暂无可用支付插件，请先到应用商店安装")
+                plugins.forEach { p ->
+                    val handle = Json.str(p, "id", Json.str(p, "handle"))
+                    val info = p.optJSONObject("info")
+                    val name = htmlClean(info?.let { Json.str(it, "name") } ?: handle)
+                    Surface(onClick = { onPick(handle, name) }, modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(name, Modifier.weight(1f))
+                            Text(handle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Divider()
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PayDetailDialog(
+    pay: JSONObject,
+    onDismiss: () -> Unit,
+    onChanged: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val id = Json.int(pay, "id")
+    val handle = Json.str(pay, "handle")
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var showConfig by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(htmlClean(Json.str(pay, "name"))) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                DetailRow("ID", id.toString())
+                DetailRow("插件", handle)
+                DetailRow("编码", Json.str(pay, "code", "-").ifBlank { "-" })
+                DetailRow("商品下单", if (Json.int(pay, "commodity") == 1) "是" else "否")
+                DetailRow("余额充值", if (Json.int(pay, "recharge") == 1) "是" else "否")
+                DetailRow("排序", Json.str(pay, "sort", "0"))
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                Spacer(Modifier.height(6.dp))
+                Text("可用操作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { showConfig = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("配置插件") }
+                    OutlinedButton(onClick = { showLog = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("查看日志") }
+                }
+                Button(
+                    onClick = {
+                        scope.launch {
+                            busy = true; msg = null
+                            runCatching { withContext(Dispatchers.IO) { Api.payTest(id) } }
+                                .onSuccess { msg = "拨测成功：" + it }
+                                .onFailure { msg = "拨测失败：" + it.message }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy, modifier = Modifier.fillMaxWidth()
+                ) { Text("支付拨测") }
+                if (id != 1) {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                busy = true
+                                runCatching { withContext(Dispatchers.IO) { Api.payDel(listOf(id)) } }
+                                    .onSuccess { onChanged("已删除") }
+                                    .onFailure { onError(it.message ?: "删除失败") }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("删除接口") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+
+    if (showConfig) PayPluginConfigDialog(handle, { showConfig = false })
+    if (showLog) PluginLogDialogForPay(handle, { showLog = false })
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PayPluginConfigDialog(handle: String, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var key by remember { mutableStateOf("") }
+    var value by remember { mutableStateOf("") }
+    var msg by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("配置支付插件") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("插件 " + handle, style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(key, { key = it }, label = { Text("配置项名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value, { value = it }, label = { Text("配置值") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text("示例：app_id / private_key / mch_id 等，按插件说明填写。", style = MaterialTheme.typography.labelSmall)
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        runCatching { withContext(Dispatchers.IO) { Api.paySetPluginConfig(handle, mapOf(key to value)) } }
+                            .onSuccess { msg = it }
+                            .onFailure { msg = it.message }
+                    }
+                },
+                enabled = key.isNotBlank()
+            ) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PluginLogDialogForPay(handle: String, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var log by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(handle) {
+        loading = true
+        log = withContext(Dispatchers.IO) { runCatching { Api.payPluginLog(handle) }.getOrDefault("") }
+        loading = false
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("支付插件日志") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (loading) CircularProgressIndicator()
+                if (!loading && log.isBlank()) Text("暂无日志")
+                if (log.isNotBlank()) Text(log, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
 }

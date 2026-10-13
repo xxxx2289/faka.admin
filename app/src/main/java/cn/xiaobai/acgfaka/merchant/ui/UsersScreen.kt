@@ -24,6 +24,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+private fun htmlClean(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    var s = raw
+    s = s.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
+    s = s.replace(Regex("<[^>]+>"), "")
+    s = s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+    return s.trim()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsersScreen(nav: NavController) {
@@ -35,6 +44,7 @@ fun UsersScreen(nav: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
     var detail by remember { mutableStateOf<JSONObject?>(null) }
+    var keyword by remember { mutableStateOf("") }
     val pageSize = 15
 
     fun load(p: Int) {
@@ -101,7 +111,7 @@ fun UsersScreen(nav: NavController) {
             user = u,
             onDismiss = { detail = null },
             onChanged = { m -> msg = m; detail = null; load(page) },
-            onError = { e -> error = e }
+            onError = { e -> error = e; detail = null }
         )
     }
 }
@@ -120,6 +130,8 @@ private fun UserDetailDialog(
     var showBalance by remember { mutableStateOf(false) }
     var showCoin by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
+    var showShop by remember { mutableStateOf(false) }
+    var showLog by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -135,7 +147,18 @@ private fun UserDetailDialog(
                 DetailRow("邮箱", Json.str(user, "email", "-").ifBlank { "-" })
                 DetailRow("手机", Json.str(user, "phone", "-").ifBlank { "-" })
                 DetailRow("QQ", Json.str(user, "qq", "-").ifBlank { "-" })
+                DetailRow("真实姓名", Json.str(user, "nicename", "-").ifBlank { "-" })
+                DetailRow("支付宝", Json.str(user, "alipay", "-").ifBlank { "-" })
+                DetailRow("上级ID", Json.str(user, "pid", "-"))
                 DetailRow("注册时间", Json.str(user, "create_time", "-"))
+                DetailRow("登录时间", Json.str(user, "login_time", "-").ifBlank { "-" })
+                DetailRow("最后登录IP", Json.str(user, "login_ip", "-").ifBlank { "-" })
+
+                val bl = user.optJSONObject("business_level")
+                if (bl != null) DetailRow("商户等级", htmlClean(Json.str(bl, "name")))
+                val bi = user.optJSONObject("business")
+                if (bi != null) DetailRow("店铺名", Json.str(bi, "shop_name", "-").ifBlank { "-" })
+
                 Spacer(Modifier.height(6.dp))
                 Text("可用操作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -150,23 +173,23 @@ private fun UserDetailDialog(
                                 busy = true
                                 try {
                                     val newStatus = if (Json.int(user, "status") == 1) 0 else 1
-                                    val m = withContext(Dispatchers.IO) { Api.userSetStatus(id, newStatus) }
-                                    onChanged(m)
+                                    onChanged(withContext(Dispatchers.IO) { Api.userSetStatus(id, newStatus) })
                                 } catch (e: Exception) { onError(e.message ?: "操作失败") } finally { busy = false }
                             }
                         },
-                        enabled = !busy,
-                        modifier = Modifier.weight(1f)
+                        enabled = !busy, modifier = Modifier.weight(1f)
                     ) { Text(if (Json.int(user, "status") == 1) "禁用" else "启用") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = { showLog = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("会员日志") }
+                    OutlinedButton(onClick = { showShop = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("商户资料") }
                 }
                 OutlinedButton(
                     onClick = {
                         scope.launch {
                             busy = true
-                            try {
-                                val m = withContext(Dispatchers.IO) { Api.userDelete(listOf(id)) }
-                                onChanged(m)
-                            } catch (e: Exception) { onError(e.message ?: "删除失败") } finally { busy = false }
+                            try { onChanged(withContext(Dispatchers.IO) { Api.userDelete(listOf(id)) }) }
+                            catch (e: Exception) { onError(e.message ?: "删除失败") } finally { busy = false }
                         }
                     },
                     enabled = !busy,
@@ -178,67 +201,29 @@ private fun UserDetailDialog(
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
     )
 
-    if (showBalance) {
-        AssetDialog(
-            title = "余额操作",
-            onDismiss = { showBalance = false },
-            onSubmit = { add, amount, log ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val m = withContext(Dispatchers.IO) { Api.userBalance(id, add, amount, log) }
-                        onChanged(m)
-                    } catch (e: Exception) { onError(e.message ?: "操作失败") } finally { busy = false }
-                }
-            }
-        )
+    if (showBalance) AssetDialog("余额操作", { showBalance = false }) { add, amount, log ->
+        scope.launch { busy = true; try { onChanged(withContext(Dispatchers.IO) { Api.userBalance(id, add, amount, log) }) } catch (e: Exception) { onError(e.message ?: "失败") } finally { busy = false } }
     }
-    if (showCoin) {
-        AssetDialog(
-            title = "硬币操作",
-            onDismiss = { showCoin = false },
-            onSubmit = { add, amount, log ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val m = withContext(Dispatchers.IO) { Api.userCoin(id, add, amount, log) }
-                        onChanged(m)
-                    } catch (e: Exception) { onError(e.message ?: "操作失败") } finally { busy = false }
-                }
-            }
-        )
+    if (showCoin) AssetDialog("硬币操作", { showCoin = false }) { add, amount, log ->
+        scope.launch { busy = true; try { onChanged(withContext(Dispatchers.IO) { Api.userCoin(id, add, amount, log) }) } catch (e: Exception) { onError(e.message ?: "失败") } finally { busy = false } }
     }
-    if (showEdit) {
-        EditUserDialog(
-            user = user,
-            onDismiss = { showEdit = false },
-            onSubmit = { fields ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val m = withContext(Dispatchers.IO) { Api.userSave(fields) }
-                        onChanged(m)
-                    } catch (e: Exception) { onError(e.message ?: "保存失败") } finally { busy = false }
-                }
-            }
-        )
+    if (showEdit) EditUserDialog(user, { showEdit = false }) { fields ->
+        scope.launch { busy = true; try { onChanged(withContext(Dispatchers.IO) { Api.userSave(fields) }) } catch (e: Exception) { onError(e.message ?: "失败") } finally { busy = false } }
     }
+    if (showShop) ShopInfoDialog(user, { showShop = false })
+    if (showLog) UserLogDialog(id, { showLog = false })
 }
 
 @Composable
 private fun DetailRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(76.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
         Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun AssetDialog(
-    title: String,
-    onDismiss: () -> Unit,
-    onSubmit: (Boolean, Double, String) -> Unit
-) {
+private fun AssetDialog(title: String, onDismiss: () -> Unit, onSubmit: (Boolean, Double, String) -> Unit) {
     var add by remember { mutableStateOf(true) }
     var amount by remember { mutableStateOf("") }
     var log by remember { mutableStateOf("") }
@@ -259,26 +244,18 @@ private fun AssetDialog(
                 OutlinedTextField(log, { log = it }, label = { Text("操作原因（2-64字）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(add, amount.toDoubleOrNull() ?: 0.0, log) },
-                enabled = (amount.toDoubleOrNull() ?: 0.0) > 0 && log.length in 2..64
-            ) { Text("提交") }
-        },
+        confirmButton = { TextButton(onClick = { onSubmit(add, amount.toDoubleOrNull() ?: 0.0, log) }, enabled = (amount.toDoubleOrNull() ?: 0.0) > 0 && log.length in 2..64) { Text("提交") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
 
 @Composable
-private fun EditUserDialog(
-    user: JSONObject,
-    onDismiss: () -> Unit,
-    onSubmit: (Map<String, String>) -> Unit
-) {
+private fun EditUserDialog(user: JSONObject, onDismiss: () -> Unit, onSubmit: (Map<String, String>) -> Unit) {
     val id = Json.int(user, "id")
     var email by remember { mutableStateOf(Json.str(user, "email")) }
     var phone by remember { mutableStateOf(Json.str(user, "phone")) }
     var qq by remember { mutableStateOf(Json.str(user, "qq")) }
+    var nicename by remember { mutableStateOf(Json.str(user, "nicename")) }
     var password by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -288,14 +265,14 @@ private fun EditUserDialog(
                 OutlinedTextField(email, { email = it }, label = { Text("邮箱") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(phone, { phone = it }, label = { Text("手机") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(qq, { qq = it }, label = { Text("QQ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(nicename, { nicename = it }, label = { Text("真实姓名") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(password, { password = it }, label = { Text("新密码（留空不改）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Text("提示：密码至少 6 位。", style = MaterialTheme.typography.labelSmall)
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    val m = mutableMapOf("id" to id.toString(), "email" to email, "phone" to phone, "qq" to qq)
+                    val m = mutableMapOf("id" to id.toString(), "email" to email, "phone" to phone, "qq" to qq, "nicename" to nicename)
                     if (password.isNotBlank()) m["password"] = password
                     onSubmit(m)
                 },
@@ -303,5 +280,69 @@ private fun EditUserDialog(
             ) { Text("保存") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+@Composable
+private fun ShopInfoDialog(user: JSONObject, onDismiss: () -> Unit) {
+    val b = user.optJSONObject("business")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("商户资料") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (b == null) {
+                    Text("该会员未开通店铺")
+                } else {
+                    DetailRow("店铺名", Json.str(b, "shop_name", "-").ifBlank { "-" })
+                    DetailRow("浏览器标题", Json.str(b, "title", "-").ifBlank { "-" })
+                    DetailRow("店铺公告", htmlClean(Json.str(b, "notice")).ifBlank { "-" })
+                    DetailRow("客服QQ", Json.str(b, "service_qq", "-").ifBlank { "-" })
+                    DetailRow("客服链接", Json.str(b, "service_url", "-").ifBlank { "-" })
+                    DetailRow("子域名", Json.str(b, "subdomain", "-").ifBlank { "-" })
+                    DetailRow("绑定域名", Json.str(b, "topdomain", "-").ifBlank { "-" })
+                    DetailRow("主站商品", if (Json.int(b, "master_display") == 1) "显示" else "隐藏")
+                    DetailRow("创建时间", Json.str(b, "create_time", "-"))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+}
+
+@Composable
+private fun UserLogDialog(userId: Int, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var list by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(userId) {
+        scope.launch {
+            loading = true; error = null
+            try { list = withContext(Dispatchers.IO) { Api.userLog(userId, 1, 30).list } }
+            catch (e: Exception) { error = e.message } finally { loading = false }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("会员日志") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                if (loading) CircularProgressIndicator()
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (!loading && list.isEmpty() && error == null) Text("暂无日志")
+                list.forEach { o ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(Json.str(o, "action", "操作"), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        Text(Json.str(o, "content", Json.str(o, "description")), style = MaterialTheme.typography.labelSmall)
+                        Text(Json.str(o, "create_time") + "  " + Json.str(o, "create_ip"), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Divider()
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
     )
 }
