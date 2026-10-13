@@ -1,14 +1,11 @@
-package cn.xiaobai.acgfaka.merchant
+package cn.xiaobai.acgfaka.admin
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -17,9 +14,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import cn.xiaobai.acgfaka.merchant.core.Http
-import cn.xiaobai.acgfaka.merchant.core.Session
-import cn.xiaobai.acgfaka.merchant.ui.*
+import cn.xiaobai.acgfaka.admin.core.Http
+import cn.xiaobai.acgfaka.admin.core.Session
+import cn.xiaobai.acgfaka.admin.ui.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,15 +34,12 @@ private fun AppRoot() {
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination?.route
 
-    // 启动即用固定默认地址
-    LaunchedEffect(Unit) {
-        Http.baseUrl = Session.server(ctx)
-    }
+    LaunchedEffect(Unit) { Http.baseUrl = Session.server(ctx) }
 
     val tabs = listOf(
-        Tab("dashboard", "工作台", Icons.Default.Dashboard),
+        Tab("dashboard", "概览", Icons.Default.Dashboard),
         Tab("orders", "订单", Icons.Default.ReceiptLong),
-        Tab("commodities", "商品", Icons.Default.Inventory2),
+        Tab("users", "用户", Icons.Default.People),
         Tab("more", "更多", Icons.Default.Apps)
     )
     val showBar = current in tabs.map { it.route }
@@ -69,10 +63,12 @@ private fun AppRoot() {
             composable("dashboard") { DashboardScreen(nav) }
             composable("orders") { OrdersScreen(nav) }
             composable("commodities") { CommoditiesScreen(nav) }
-            composable("more") { MoreScreen(nav) }
             composable("cards") { CardsScreen(nav) }
-            composable("categories") { CategoriesScreen(nav) }
-            composable("bills") { BillsScreen(nav) }
+            composable("users") { UsersScreen(nav) }
+            composable("cash") { CashScreen(nav) }
+            composable("logs") { LogsScreen(nav) }
+            composable("plugins") { PluginsScreen(nav) }
+            composable("more") { MoreScreen(nav) }
             composable("login") { LoginScreen(nav) }
             composable("server") { ServerScreen(nav) }
         }

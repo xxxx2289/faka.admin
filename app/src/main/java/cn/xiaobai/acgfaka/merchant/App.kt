@@ -1,7 +1,7 @@
-package cn.xiaobai.acgfaka.merchant
+package cn.xiaobai.acgfaka.admin
 
 import android.app.Application
-import cn.xiaobai.acgfaka.merchant.core.Http
+import cn.xiaobai.acgfaka.admin.core.Http
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -15,11 +15,7 @@ class App : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
-            .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
-                    .build()
-            }
+            .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.25).build() }
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
