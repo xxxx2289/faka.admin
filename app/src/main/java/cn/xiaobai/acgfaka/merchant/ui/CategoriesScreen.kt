@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun CategoriesScreen(nav: NavController) {
     val scope = rememberCoroutineScope()
     var list by remember { mutableStateOf<List<JSONObject>>(emptyList()) }

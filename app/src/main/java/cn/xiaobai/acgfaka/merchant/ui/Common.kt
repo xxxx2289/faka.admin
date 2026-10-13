@@ -44,6 +44,7 @@ fun FieldRow(label: String, value: String) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun PagedList(
     title: String,
     page: Int,
