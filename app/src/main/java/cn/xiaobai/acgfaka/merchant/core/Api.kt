@@ -33,6 +33,16 @@ object Api {
         return d.optBoolean("locked", false)
     }
 
+    /** 只读查询会话是否被锁（不续命），供 App 前台化时判断是否弹锁屏 */
+    fun lockStatus(): Boolean {
+        val d = Http.postSync("/admin/api/authentication/lockStatus").optJSONObject("data") ?: JSONObject()
+        return d.optBoolean("locked", false)
+    }
+
+    /** 密码解锁：锁屏后输入登录密码即可恢复 */
+    fun unlockPassword(password: String): String =
+        Http.postSync("/admin/api/authentication/unlockPassword", mapOf("password" to password)).optString("msg", "解锁成功")
+
     // ---------- 数据概览 ----------
     /** type: 0今天 1昨天 2本周 3本月 4全部 */
     fun dashboardData(type: Int): JSONObject =

@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
  * 全局 HTTP 层（平台后台）。
  * - 会话 Cookie（MANAGE_USER）持久化到本地，重启恢复。
  * - ManageSession 拦截器校验 Referer host，统一补上。
+ * - 被锁定（code 42010）时抛 Api.LockedException，由界面弹锁屏。
  */
 object Http {
     @Volatile var baseUrl: String = ""
@@ -135,6 +136,7 @@ object Http {
         }
         if (httpCode == 301 || httpCode == 302 || httpCode == 303) throw ApiException("会话失效或跳转，请重新登录")
         val code = json.optInt("code", 200)
+        if (code == 42010) { AppState.locked = true; throw Api.LockedException(json.optString("msg", "会话已锁定，请重新验证")) }
         if (code != 200) throw ApiException(json.optString("msg", "请求失败（$code）"))
         return json
     }
