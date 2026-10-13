@@ -3,7 +3,7 @@ package cn.xiaobai.acgfaka.admin.core
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 平台后台接口封装，路径 /admin/api/*，独立管理员会话。 */
+// 平台后台接口封装，路径 /admin/api 下，独立管理员会话。
 object Api {
 
     class NeedTotpException(message: String) : Exception(message)
