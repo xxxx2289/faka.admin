@@ -1,30 +1,31 @@
-# 异次元商家 · 商家后台 App
+# 异次元后台 · 平台管理员 App
 
-ACG-Faka 发卡系统的原生 Android 商家端。Kotlin + Jetpack Compose。商家即前台登录用户，走 /user/api/* 商家权限接口。
+ACG-Faka 平台后台（超管）的原生 Android 客户端。Kotlin + Jetpack Compose。
+
+## 与商家端的区别
+- 本 App 走 `/admin/api/*`，是**平台管理员**账号体系，会话名 MANAGE_USER。
+- 商家端走 `/user/api/*`，是前台用户体系的商家身份。两者完全独立。
 
 ## 功能
-- 服务器地址配置（测试环境支持 http 内网 IP）
-- 登录（图形验证码 + 谷歌验证码）
-- 工作台：订单总数、待发货、商品数、卡密库存、余额
-- 订单管理：分页、按订单号搜索、待发货/已发货筛选、手动发货
-- 商品管理：分页、搜索、上下架
-- 卡密管理：分页列表、批量添加、删除
-- 分类管理、账单明细
+- 管理员登录（图形验证码 action=adminLogin + 谷歌两步验证）
+- 经营概览：今天/昨天/本周/本月/全部的成交额、订单数、利润、买家数、充值、新增用户、待提现、未付款订单
+- 订单管理、商品管理、卡密管理、用户管理
+- 提现审核（通过/驳回）
+- 操作日志、插件管理（开关）
+- 服务器地址配置（构建时固定 + 可覆盖）
 
-## 对接的真实接口
-- POST /user/api/authentication/login
-- GET  /user/captcha/image?action=userLogin
-- GET  /user/api/site/info
-- POST /user/api/commodity/data、/commodity/save、/commodity/del
-- POST /user/api/commodityOrder/data、/commodityOrder/delivery
-- POST /user/api/card/data、/card/save、/card/del
-- POST /user/api/category/data
-- POST /user/api/bill/data
-- GET  /user/api/security/personal
+## 对接接口
+- POST /admin/api/authentication/login
+- GET  /user/captcha/image?action=adminLogin
+- POST /admin/api/authentication/ping
+- GET  /admin/api/dashboard/data?type=0
+- POST /admin/api/order/data
+- POST /admin/api/commodity/data
+- POST /admin/api/card/data
+- POST /admin/api/user/data
+- POST /admin/api/cash/data、/cash/decide
+- POST /admin/api/log/data
+- GET  /admin/api/plugin/getPlugins、POST /plugin/setConfig
 
 ## 构建
-GitHub Actions 工作流构建 debug APK，产物名 acg-faka-merchant-debug-apk。
-
-## 说明
-- 部分写操作（商品编辑、分类增删）依赖服务端参数校验，App 端已按现有接口最小实现。
-- 平台超管后台（/admin/api/*）是另一套账号体系，不在本 App 范围。
+GitHub Actions 构建 debug APK，产物名 acg-faka-admin-debug-apk。
