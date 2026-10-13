@@ -1,4 +1,4 @@
-package cn.xiaobai.acgfaka.merchant.core
+package cn.xiaobai.acgfaka.admin.core
 
 import android.content.Context
 import okhttp3.Cookie
@@ -12,15 +12,15 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * 全局 HTTP 层。
- * - 会话 Cookie 持久化到本地，App 重启后自动恢复，避免「会话过期」。
- * - 服务端 UserSession 拦截器校验 Referer host，App 不会自动带，这里统一补上。
+ * 全局 HTTP 层（平台后台）。
+ * - 会话 Cookie（MANAGE_USER）持久化到本地，重启恢复。
+ * - ManageSession 拦截器校验 Referer host，统一补上。
  */
 object Http {
     @Volatile var baseUrl: String = ""
 
     private lateinit var appContext: Context
-    private const val COOKIE_PREF = "acg_faka_merchant_cookies"
+    private const val COOKIE_PREF = "acg_faka_admin_cookies"
     private const val COOKIE_KEY = "cookies"
 
     fun init(context: Context) {
@@ -69,7 +69,6 @@ object Http {
                     o.put("secure", c.secure)
                     o.put("httpOnly", c.httpOnly)
                     o.put("hostOnly", c.hostOnly)
-                    o.put("persistent", c.persistent)
                     arr.put(o)
                 }
                 appContext.getSharedPreferences(COOKIE_PREF, Context.MODE_PRIVATE)

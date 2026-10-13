@@ -1,15 +1,14 @@
-package cn.xiaobai.acgfaka.merchant.core
+package cn.xiaobai.acgfaka.admin.core
 
 import org.json.JSONArray
 import org.json.JSONObject
 
-// 商家后台接口封装。商家即前台登录用户，走 /user/api 路径。
+/** 平台后台接口封装，路径 /admin/api/*，独立管理员会话。 */
 object Api {
 
-    // ---------- 认证 ----------
     class NeedTotpException(message: String) : Exception(message)
+    class LockedException(message: String) : Exception(message)
 
-    /** 登录：验证码 action 必须是 login */
     fun login(username: String, password: String, captcha: String, code: String = "", remember: Boolean = true): String {
         val params = mutableMapOf(
             "username" to username.trim(), "password" to password,
@@ -17,134 +16,75 @@ object Api {
         )
         if (code.isNotBlank()) params["code"] = code.trim()
         try {
-            return Http.postSync("/user/api/authentication/login", params).optString("msg", "登录成功")
+            return Http.postSync("/admin/api/authentication/login", params).optString("msg", "登录成功")
         } catch (e: ApiException) {
             val m = e.message ?: ""
             if (m.contains("谷歌") || m.contains("两步")) throw NeedTotpException(m)
+            if (m.contains("锁定")) throw LockedException(m)
             throw e
         }
     }
 
-    /** 登录图形验证码：action=login */
     fun loginCaptcha(): ByteArray =
-        Http.getBytesSync("/user/captcha/image?action=login&t=${System.currentTimeMillis()}")
+        Http.getBytesSync("/user/captcha/image?action=adminLogin&t=${System.currentTimeMillis()}")
 
-    data class SiteInfo(val shopName: String, val notice: String?)
-    fun siteInfo(): SiteInfo {
-        val d = Http.getSync("/user/api/site/info").optJSONObject("data") ?: JSONObject()
-        return SiteInfo(Json.str(d, "shop_name", "异次元商家"), Json.nullable(d, "notice"))
+    fun ping(): Boolean {
+        val d = Http.postSync("/admin/api/authentication/ping").optJSONObject("data") ?: JSONObject()
+        return d.optBoolean("locked", false)
     }
 
-    // ---------- 工作台概览 ----------
-    data class Dashboard(
-        val orderTotal: Int, val orderToday: Int, val orderPending: Int,
-        val commodityTotal: Int, val cardStock: Int, val balance: Double, val username: String
-    )
+    // ---------- 数据概览 ----------
+    /** type: 0今天 1昨天 2本周 3本月 4全部 */
+    fun dashboardData(type: Int): JSONObject =
+        Http.getSync("/admin/api/dashboard/data", mapOf("type" to type.toString())).optJSONObject("data") ?: JSONObject()
 
-    fun dashboard(): Dashboard {
-        var orderTotal = 0; var orderPending = 0
-        var commodityTotal = 0; var cardStock = 0
-        var balance = 0.0; var username = ""
-
-        runCatching {
-            val d = Http.postSync("/user/api/commodityOrder/data", mapOf("page" to "1", "limit" to "1"))
-            val data = d.optJSONObject("data") ?: JSONObject()
-            orderTotal = data.optInt("total", 0)
-        }
-        runCatching {
-            val d = Http.postSync("/user/api/commodityOrder/data", mapOf("page" to "1", "limit" to "1", "delivery_status" to "0"))
-            val data = d.optJSONObject("data") ?: JSONObject()
-            orderPending = data.optInt("total", 0)
-        }
-        runCatching {
-            val d = Http.postSync("/user/api/commodity/data", mapOf("page" to "1", "limit" to "1"))
-            val data = d.optJSONObject("data") ?: JSONObject()
-            commodityTotal = data.optInt("total", 0)
-        }
-        runCatching {
-            val d = Http.postSync("/user/api/card/data", mapOf("page" to "1", "limit" to "1"))
-            val data = d.optJSONObject("data") ?: JSONObject()
-            cardStock = data.optInt("total", 0)
-        }
-        runCatching {
-            val p = Http.getSync("/user/api/security/personal").optJSONObject("data") ?: JSONObject()
-            balance = Json.dbl(p, "balance")
-            username = Json.str(p, "username")
-        }
-        return Dashboard(orderTotal, 0, orderPending, commodityTotal, cardStock, balance, username)
-    }
-
-    // ---------- 商品管理 ----------
+    // ---------- 通用分页 ----------
     data class Page(val list: List<JSONObject>, val total: Int)
 
-    fun commodities(page: Int = 1, limit: Int = 15, keyword: String = ""): Page {
-        val params = mutableMapOf("page" to page.toString(), "limit" to limit.toString())
-        if (keyword.isNotBlank()) params["name"] = keyword
-        val data = Http.postSync("/user/api/commodity/data", params).optJSONObject("data") ?: JSONObject()
+    private fun page(path: String, p: Int, l: Int, extra: Map<String, String> = emptyMap()): Page {
+        val params = mutableMapOf("page" to p.toString(), "limit" to l.toString())
+        params.putAll(extra)
+        val data = Http.postSync(path, params).optJSONObject("data") ?: JSONObject()
         val arr = data.optJSONArray("list") ?: JSONArray()
         val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
         return Page(list, data.optInt("total", list.size))
     }
 
-    fun setCommodityStatus(id: Int, status: Int): String {
-        return Http.postSync("/user/api/commodity/save", mapOf("id" to id.toString(), "status" to status.toString())).optString("msg", "已更新")
-    }
+    fun orders(p: Int = 1, l: Int = 15): Page = page("/admin/api/order/data", p, l)
+    fun commodities(p: Int = 1, l: Int = 15): Page = page("/admin/api/commodity/data", p, l)
+    fun cards(p: Int = 1, l: Int = 15): Page = page("/admin/api/card/data", p, l)
+    fun users(p: Int = 1, l: Int = 15): Page = page("/admin/api/user/data", p, l)
+    fun cashList(p: Int = 1, l: Int = 15): Page = page("/admin/api/cash/data", p, l)
+    fun logs(p: Int = 1, l: Int = 15): Page = page("/admin/api/log/data", p, l)
 
-    fun deleteCommodity(id: Int): String {
-        return Http.postSync("/user/api/commodity/del", mapOf("id" to id.toString())).optString("msg", "已删除")
-    }
-
-    // ---------- 订单管理 ----------
-    fun orders(page: Int = 1, limit: Int = 15, keyword: String = "", deliveryStatus: Int? = null): Page {
-        val params = mutableMapOf("page" to page.toString(), "limit" to limit.toString())
-        if (keyword.isNotBlank()) params["trade_no"] = keyword
-        if (deliveryStatus != null) params["delivery_status"] = deliveryStatus.toString()
-        val data = Http.postSync("/user/api/commodityOrder/data", params).optJSONObject("data") ?: JSONObject()
-        val arr = data.optJSONArray("list") ?: JSONArray()
-        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
-        return Page(list, data.optInt("total", list.size))
-    }
-
-    fun deliver(orderId: Int): String {
-        return Http.postSync("/user/api/commodityOrder/delivery", mapOf("id" to orderId.toString())).optString("msg", "发货成功")
-    }
-
-    // ---------- 卡密管理 ----------
-    fun cards(page: Int = 1, limit: Int = 15, keyword: String = "", commodityId: Int? = null): Page {
-        val params = mutableMapOf("page" to page.toString(), "limit" to limit.toString())
-        if (keyword.isNotBlank()) params["draft"] = keyword
-        if (commodityId != null) params["commodity_id"] = commodityId.toString()
-        val data = Http.postSync("/user/api/card/data", params).optJSONObject("data") ?: JSONObject()
-        val arr = data.optJSONArray("list") ?: JSONArray()
-        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
-        return Page(list, data.optInt("total", list.size))
-    }
-
-    fun addCards(commodityId: Int, draft: String, premium: Double = 0.0, race: String = ""): String {
+    /**
+     * 提现审核。status: 0=通过，1=驳回。驳回时必须给 message（理由）。
+     */
+    fun cashDecide(id: Int, reject: Boolean, message: String = ""): String {
         val params = mutableMapOf(
-            "commodity_id" to commodityId.toString(),
-            "draft" to draft,
-            "premium" to premium.toString()
+            "id" to id.toString(),
+            "status" to if (reject) "1" else "0"
         )
-        if (race.isNotBlank()) params["race"] = race
-        return Http.postSync("/user/api/card/save", params).optString("msg", "添加成功")
+        if (reject && message.isNotBlank()) params["message"] = message
+        return Http.postSync("/admin/api/cash/decide", params).optString("msg", "已处理")
     }
 
-    fun deleteCard(id: Int): String = Http.postSync("/user/api/card/del", mapOf("id" to id.toString())).optString("msg", "已删除")
-
-    // ---------- 分类 ----------
-    fun categories(page: Int = 1, limit: Int = 50): Page {
-        val data = Http.postSync("/user/api/category/data", mapOf("page" to page.toString(), "limit" to limit.toString())).optJSONObject("data") ?: JSONObject()
-        val arr = data.optJSONArray("list") ?: JSONArray()
-        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
-        return Page(list, data.optInt("total", list.size))
+    /**
+     * 商品上下架。服务端接收 list[] 数组 + status(0/1)。
+     */
+    fun commodityStatus(ids: List<Int>, online: Boolean): String {
+        val params = mutableMapOf("status" to if (online) "1" else "0")
+        ids.forEachIndexed { i, id -> params["list[$i]"] = id.toString() }
+        return Http.postSync("/admin/api/commodity/status", params).optString("msg", "已更新")
     }
 
-    // ---------- 账单 ----------
-    fun bills(page: Int = 1, limit: Int = 15): Page {
-        val data = Http.postSync("/user/api/bill/data", mapOf("page" to page.toString(), "limit" to limit.toString())).optJSONObject("data") ?: JSONObject()
-        val arr = data.optJSONArray("list") ?: JSONArray()
-        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
-        return Page(list, data.optInt("total", list.size))
+    /** 插件列表 */
+    fun plugins(): List<JSONObject> {
+        val arr = Http.getSync("/admin/api/plugin/getPlugins").opt("data")
+        return if (arr is JSONArray) (0 until arr.length()).mapNotNull { arr.optJSONObject(it) } else emptyList()
     }
+
+    /** 插件开关 */
+    fun pluginSetConfig(id: String, status: Boolean): String =
+        Http.postSync("/admin/api/plugin/setConfig", mapOf("id" to id, "STATUS" to if (status) "1" else "0")).optString("msg", "已更新")
 }

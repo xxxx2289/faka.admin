@@ -1,10 +1,10 @@
-package cn.xiaobai.acgfaka.merchant.core
+package cn.xiaobai.acgfaka.admin.core
 
 import android.content.Context
-import cn.xiaobai.acgfaka.merchant.BuildConfig
+import cn.xiaobai.acgfaka.admin.BuildConfig
 
 object Session {
-    private const val PREF = "acg_faka_merchant"
+    private const val PREF = "acg_faka_admin"
     private fun sp(ctx: Context) = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
 
     fun server(ctx: Context): String {

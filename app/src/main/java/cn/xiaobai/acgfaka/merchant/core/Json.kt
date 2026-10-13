@@ -1,4 +1,4 @@
-package cn.xiaobai.acgfaka.merchant.core
+package cn.xiaobai.acgfaka.admin.core
 
 import org.json.JSONObject
 
