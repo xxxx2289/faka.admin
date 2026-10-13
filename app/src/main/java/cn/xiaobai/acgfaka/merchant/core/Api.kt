@@ -57,9 +57,6 @@ object Api {
     fun cashList(p: Int = 1, l: Int = 15): Page = page("/admin/api/cash/data", p, l)
     fun logs(p: Int = 1, l: Int = 15): Page = page("/admin/api/log/data", p, l)
 
-    /**
-     * 提现审核。status: 0=通过，1=驳回。驳回时必须给 message（理由）。
-     */
     fun cashDecide(id: Int, reject: Boolean, message: String = ""): String {
         val params = mutableMapOf(
             "id" to id.toString(),
@@ -69,22 +66,47 @@ object Api {
         return Http.postSync("/admin/api/cash/decide", params).optString("msg", "已处理")
     }
 
-    /**
-     * 商品上下架。服务端接收 list[] 数组 + status(0/1)。
-     */
     fun commodityStatus(ids: List<Int>, online: Boolean): String {
         val params = mutableMapOf("status" to if (online) "1" else "0")
         ids.forEachIndexed { i, id -> params["list[$i]"] = id.toString() }
         return Http.postSync("/admin/api/commodity/status", params).optString("msg", "已更新")
     }
 
-    /** 插件列表 */
-    fun plugins(): List<JSONObject> {
-        val arr = Http.getSync("/admin/api/plugin/getPlugins").opt("data")
-        return if (arr is JSONArray) (0 until arr.length()).mapNotNull { arr.optJSONObject(it) } else emptyList()
+    /**
+     * 已安装插件列表。服务端返回 {data:{list:[...]}}，data 是对象不是数组。
+     */
+    fun plugins(keyword: String = ""): List<JSONObject> {
+        val params = mutableMapOf<String, String>()
+        if (keyword.isNotBlank()) params["keywords"] = keyword
+        val json = if (params.isEmpty()) Http.getSync("/admin/api/plugin/getPlugins")
+                   else Http.postSync("/admin/api/plugin/getPlugins", params)
+        val data = json.optJSONObject("data") ?: return emptyList()
+        val arr = data.optJSONArray("list") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
     }
 
     /** 插件开关 */
     fun pluginSetConfig(id: String, status: Boolean): String =
         Http.postSync("/admin/api/plugin/setConfig", mapOf("id" to id, "STATUS" to if (status) "1" else "0")).optString("msg", "已更新")
+
+    /**
+     * 应用商店。官方远端插件市场。
+     * 服务端返回 {data:{list:[...], total:N}, user:..., purchase:...}
+     * group: 0=插件 1=支付 2=主题；owner: -1=全部
+     */
+    data class StoreResult(val list: List<JSONObject>, val total: Int)
+
+    fun appStore(page: Int = 1, limit: Int = 15, keyword: String = "", group: Int = 0): StoreResult {
+        val params = mutableMapOf(
+            "page" to page.toString(),
+            "limit" to limit.toString(),
+            "group" to group.toString()
+        )
+        if (keyword.isNotBlank()) params["keywords"] = keyword
+        val json = Http.postSync("/admin/api/app/plugins", params)
+        val data = json.optJSONObject("data") ?: JSONObject()
+        val arr = data.optJSONArray("list") ?: JSONArray()
+        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+        return StoreResult(list, data.optInt("total", list.size))
+    }
 }
