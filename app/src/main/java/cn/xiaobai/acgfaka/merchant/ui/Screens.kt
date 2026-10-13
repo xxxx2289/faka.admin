@@ -185,24 +185,6 @@ fun CardsScreen(nav: NavController) {
     }
 }
 
-@Composable
-fun UsersScreen(nav: NavController) {
-    PagedScreen(nav, "用户管理", { p, l -> Api.users(p, l) }, emptyText = "暂无用户") { o ->
-        val id = Json.int(o, "id")
-        val balance = money(o, "balance")
-        val recharge = money(o, "recharge")
-        val t = Json.str(o, "create_time")
-        InfoCard(
-            title = Json.str(o, "username", "用户"),
-            badge = "ID $id",
-            rows = buildList {
-                add("余额" to "¥$balance")
-                add("累计充值" to "¥$recharge")
-                if (t.isNotBlank()) add("注册" to t)
-            }
-        )
-    }
-}
 
 @Composable
 fun CashScreen(nav: NavController) {
