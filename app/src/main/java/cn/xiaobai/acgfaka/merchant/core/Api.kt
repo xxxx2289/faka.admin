@@ -33,22 +33,18 @@ object Api {
         return d.optBoolean("locked", false)
     }
 
-    /** 只读查询会话是否被锁（不续命），供 App 前台化时判断是否弹锁屏 */
     fun lockStatus(): Boolean {
         val d = Http.postSync("/admin/api/authentication/lockStatus").optJSONObject("data") ?: JSONObject()
         return d.optBoolean("locked", false)
     }
 
-    /** 密码解锁：锁屏后输入登录密码即可恢复 */
     fun unlockPassword(password: String): String =
         Http.postSync("/admin/api/authentication/unlockPassword", mapOf("password" to password)).optString("msg", "解锁成功")
 
-    // ---------- 数据概览 ----------
     /** type: 0今天 1昨天 2本周 3本月 4全部 */
     fun dashboardData(type: Int): JSONObject =
         Http.getSync("/admin/api/dashboard/data", mapOf("type" to type.toString())).optJSONObject("data") ?: JSONObject()
 
-    // ---------- 通用分页 ----------
     data class Page(val list: List<JSONObject>, val total: Int)
 
     private fun page(path: String, p: Int, l: Int, extra: Map<String, String> = emptyMap()): Page {
@@ -68,10 +64,7 @@ object Api {
     fun logs(p: Int = 1, l: Int = 15): Page = page("/admin/api/log/data", p, l)
 
     fun cashDecide(id: Int, reject: Boolean, message: String = ""): String {
-        val params = mutableMapOf(
-            "id" to id.toString(),
-            "status" to if (reject) "1" else "0"
-        )
+        val params = mutableMapOf("id" to id.toString(), "status" to if (reject) "1" else "0")
         if (reject && message.isNotBlank()) params["message"] = message
         return Http.postSync("/admin/api/cash/decide", params).optString("msg", "已处理")
     }
@@ -82,9 +75,8 @@ object Api {
         return Http.postSync("/admin/api/commodity/status", params).optString("msg", "已更新")
     }
 
-    /**
-     * 已安装插件列表。服务端返回 {data:{list:[...]}}，data 是对象不是数组。
-     */
+    // ---------- 插件管理 ----------
+
     fun plugins(keyword: String = ""): List<JSONObject> {
         val params = mutableMapOf<String, String>()
         if (keyword.isNotBlank()) params["keywords"] = keyword
@@ -99,18 +91,27 @@ object Api {
     fun pluginSetConfig(id: String, status: Boolean): String =
         Http.postSync("/admin/api/plugin/setConfig", mapOf("id" to id, "STATUS" to if (status) "1" else "0")).optString("msg", "已更新")
 
-    /**
-     * 应用商店。官方远端插件市场。
-     * 服务端返回 {data:{list:[...], total:N}, user:..., purchase:...}
-     * group: 0=插件 1=支付 2=主题；owner: -1=全部
-     */
+    /** 保存插件配置（任意键值） */
+    fun pluginSaveConfig(id: String, fields: Map<String, String>): String {
+        val params = mutableMapOf("id" to id)
+        params.putAll(fields)
+        return Http.postSync("/admin/api/plugin/setConfig", params).optString("msg", "配置已生效")
+    }
+
+    /** 插件运行日志 */
+    fun pluginLog(handle: String): String =
+        Http.postSync("/admin/api/plugin/getPluginLog", mapOf("handle" to handle)).optJSONObject("data")?.optString("log", "") ?: ""
+
+    fun pluginClearLog(handle: String): String =
+        Http.postSync("/admin/api/plugin/ClearPluginLog", mapOf("handle" to handle)).optString("msg", "已清空")
+
+    // ---------- 应用商店 ----------
+
     data class StoreResult(val list: List<JSONObject>, val total: Int)
 
     fun appStore(page: Int = 1, limit: Int = 15, keyword: String = "", group: Int = 0): StoreResult {
         val params = mutableMapOf(
-            "page" to page.toString(),
-            "limit" to limit.toString(),
-            "group" to group.toString()
+            "page" to page.toString(), "limit" to limit.toString(), "group" to group.toString()
         )
         if (keyword.isNotBlank()) params["keywords"] = keyword
         val json = Http.postSync("/admin/api/app/plugins", params)
@@ -120,49 +121,100 @@ object Api {
         return StoreResult(list, data.optInt("total", list.size))
     }
 
-    // ---------- 会员管理扩展 ----------
+    /** 商店下单购买。type: 0插件 1支付 2主题 */
+    fun appPurchase(type: Int, pluginId: Int, payType: Int): String =
+        Http.postSync("/admin/api/app/purchase", mapOf(
+            "type" to type.toString(), "plugin_id" to pluginId.toString(), "payType" to payType.toString()
+        )).optString("msg", "下单成功")
 
-    /** 会员数据统计（交易额），GET 带 id */
+    fun appInstall(pluginKey: String, type: Int, pluginId: Int): String =
+        Http.postSync("/admin/api/app/install", mapOf(
+            "plugin_key" to pluginKey, "type" to type.toString(), "plugin_id" to pluginId.toString()
+        )).optString("msg", "安装完成")
+
+    fun appUpgrade(pluginKey: String, type: Int, pluginId: Int): String =
+        Http.postSync("/admin/api/app/upgrade", mapOf(
+            "plugin_key" to pluginKey, "type" to type.toString(), "plugin_id" to pluginId.toString()
+        )).optString("msg", "更新完成")
+
+    fun appUninstall(pluginKey: String, type: Int): String =
+        Http.postSync("/admin/api/app/uninstall", mapOf(
+            "plugin_key" to pluginKey, "type" to type.toString()
+        )).optString("msg", "卸载完成")
+
+    // ---------- 会员管理 ----------
+
     fun userStatistics(id: Int): JSONObject =
         Http.getSync("/admin/api/user/statistics", mapOf("id" to id.toString())).optJSONObject("data") ?: JSONObject()
 
-    /**
-     * 余额变动。action: 1=增加 0=扣减；amount 正数，最多两位小数；log 2-64 字。
-     * total: 是否计入累计统计。
-     */
-    fun userBalance(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String {
-        return Http.postSync("/admin/api/user/recharge", mapOf(
-            "id" to id.toString(),
-            "action" to if (add) "1" else "0",
-            "amount" to amount.toString(),
-            "log" to log,
-            "total" to if (total) "1" else "0"
+    fun userBalance(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String =
+        Http.postSync("/admin/api/user/recharge", mapOf(
+            "id" to id.toString(), "action" to if (add) "1" else "0",
+            "amount" to amount.toString(), "log" to log, "total" to if (total) "1" else "0"
         )).optString("msg", "操作成功")
-    }
 
-    /** 硬币变动。参数同余额。仅站长本人可调。 */
-    fun userCoin(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String {
-        return Http.postSync("/admin/api/user/coin", mapOf(
-            "id" to id.toString(),
-            "action" to if (add) "1" else "0",
-            "amount" to amount.toString(),
-            "log" to log,
-            "total" to if (total) "1" else "0"
+    fun userCoin(id: Int, add: Boolean, amount: Double, log: String, total: Boolean = false): String =
+        Http.postSync("/admin/api/user/coin", mapOf(
+            "id" to id.toString(), "action" to if (add) "1" else "0",
+            "amount" to amount.toString(), "log" to log, "total" to if (total) "1" else "0"
         )).optString("msg", "操作成功")
-    }
 
-    /** 会员资料保存：可改 username/email/phone/qq/password/status(0封禁1正常)/pid/group_id/business_level */
     fun userSave(fields: Map<String, String>): String =
         Http.postSync("/admin/api/user/save", fields).optString("msg", "已保存")
 
-    /** 启用/停用会员 */
     fun userSetStatus(id: Int, status: Int): String =
         Http.postSync("/admin/api/user/save", mapOf("id" to id.toString(), "status" to status.toString())).optString("msg", "已更新")
 
-    /** 删除会员，list[] 数组 */
     fun userDelete(ids: List<Int>): String {
         val params = mutableMapOf<String, String>()
         ids.forEachIndexed { i, id -> params["list[$i]"] = id.toString() }
         return Http.postSync("/admin/api/user/del", params).optString("msg", "已删除")
     }
+
+    /** 关闭/开启店铺 */
+    fun userShopClosed(id: Int, closed: Boolean): String =
+        Http.postSync("/admin/api/user/shopClosed", mapOf("id" to id.toString(), "status" to if (closed) "1" else "0")).optString("msg", "已更新")
+
+    /** 会员操作日志 */
+    fun userLog(id: Int, p: Int = 1, l: Int = 15): Page {
+        val data = Http.getSync("/admin/api/user/log", mapOf("id" to id.toString(), "page" to p.toString(), "limit" to l.toString()))
+            .optJSONObject("data") ?: JSONObject()
+        val arr = data.optJSONArray("list") ?: JSONArray()
+        val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+        return Page(list, data.optInt("total", list.size))
+    }
+
+    // ---------- 支付设置 ----------
+
+    fun payList(p: Int = 1, l: Int = 15): Page = page("/admin/api/pay/data", p, l)
+
+    /** 保存支付接口。字段：name/icon/code/commodity/recharge/handle/sort/equipment */
+    fun paySave(fields: Map<String, String>): String =
+        Http.postSync("/admin/api/pay/save", fields).optString("msg", "保存成功")
+
+    fun payDel(ids: List<Int>): String {
+        val params = mutableMapOf<String, String>()
+        ids.forEachIndexed { i, id -> params["list[$i]"] = id.toString() }
+        return Http.postSync("/admin/api/pay/del", params).optString("msg", "已删除")
+    }
+
+    /** 支付插件列表（用于新增支付接口时选插件） */
+    fun payPlugins(): List<JSONObject> {
+        val arr = Http.getSync("/admin/api/pay/getPlugins").optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+    }
+
+    /** 保存支付插件配置 */
+    fun paySetPluginConfig(handle: String, fields: Map<String, String>): String {
+        val params = mutableMapOf("id" to handle)
+        params.putAll(fields)
+        return Http.postSync("/admin/api/pay/setPluginConfig", params).optString("msg", "修改成功")
+    }
+
+    fun payPluginLog(handle: String): String =
+        Http.postSync("/admin/api/pay/getPluginLog", mapOf("handle" to handle)).optJSONObject("data")?.optString("log", "") ?: ""
+
+    /** 支付接口拨测 */
+    fun payTest(id: Int): String =
+        Http.postSync("/admin/api/pay/test", mapOf("id" to id.toString())).optString("msg", "测试完成")
 }
