@@ -217,7 +217,7 @@ fun CashScreen(nav: NavController) {
                             Button(
                                 onClick = {
                                     scope.launch {
-                                        runCatching { withContext(Dispatchers.IO) { Api.cashDecide(id, 1) } }
+                                        runCatching { withContext(Dispatchers.IO) { Api.cashDecide(id, false) } }
                                         reload++
                                     }
                                 },
@@ -226,7 +226,7 @@ fun CashScreen(nav: NavController) {
                             OutlinedButton(
                                 onClick = {
                                     scope.launch {
-                                        runCatching { withContext(Dispatchers.IO) { Api.cashDecide(id, 2) } }
+                                        runCatching { withContext(Dispatchers.IO) { Api.cashDecide(id, true, "审核未通过") } }
                                         reload++
                                     }
                                 },
