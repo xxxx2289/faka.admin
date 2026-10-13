@@ -3,7 +3,7 @@ package cn.xiaobai.acgfaka.merchant.core
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 商家后台接口封装。商家即前台登录用户，走 /user/api/*。 */
+// 商家后台接口封装。商家即前台登录用户，走 /user/api 路径。
 object Api {
 
     // ---------- 认证 ----------
