@@ -171,6 +171,21 @@ object Api {
         val arr = Http.getSync("/admin/api/app/purchaseRecords", mapOf("plugin_id" to pluginId.toString())).optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
         return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
     }
+    // ---------- 商店账户与授权 ----------
+
+    /** 商店账户状态：{id, developer, level, is_have_level}。id<=0 表示未登录商店账户 */
+    fun storeService(): JSONObject =
+        Http.postSync("/admin/api/app/service").optJSONObject("data") ?: JSONObject()
+
+    /** 登录商店账户 */
+    fun storeLogin(username: String, password: String): String =
+        Http.postSync("/admin/api/app/login", mapOf("username" to username, "password" to password)).optString("msg", "登录成功")
+
+    /** 账号名下的授权列表（可转移到本机） */
+    fun storeAuthLevels(): List<JSONObject> {
+        val arr = Http.postSync("/admin/api/app/levels").optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+    }
     // ---------- 会员管理 ----------
 
     fun userStatistics(id: Int): JSONObject =
