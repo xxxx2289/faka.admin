@@ -107,7 +107,13 @@ object Api {
 
     // ---------- 应用商店 ----------
 
-    data class StoreResult(val list: List<JSONObject>, val total: Int)
+
+    data class StoreResult(
+        val list: List<JSONObject>,
+        val total: Int,
+        val user: JSONObject,
+        val purchase: JSONArray
+    )
 
     fun appStore(page: Int = 1, limit: Int = 15, keyword: String = "", group: Int = 0): StoreResult {
         val params = mutableMapOf(
@@ -118,7 +124,11 @@ object Api {
         val data = json.optJSONObject("data") ?: JSONObject()
         val arr = data.optJSONArray("list") ?: JSONArray()
         val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
-        return StoreResult(list, data.optInt("total", list.size))
+        return StoreResult(
+            list, data.optInt("total", list.size),
+            json.optJSONObject("user") ?: JSONObject(),
+            json.optJSONArray("purchase") ?: JSONArray()
+        )
     }
 
     /** 商店下单购买。type: 0插件 1支付 2主题 */
@@ -142,6 +152,25 @@ object Api {
             "plugin_key" to pluginKey, "type" to type.toString()
         )).optString("msg", "卸载完成")
 
+    /** 解绑设备授权。auth_id 来自商店列表项里的授权记录ID */
+    fun appUnbind(authId: Int): String =
+        Http.postSync("/admin/api/app/unbind", mapOf("auth_id" to authId.toString())).optString("msg", "解绑成功")
+
+    /** 绑定专业版/企业版授权到当前设备 */
+    fun appBindLevel(authId: Int): String =
+        Http.postSync("/admin/api/app/bindLevel", mapOf("auth_id" to authId.toString())).optString("msg", "绑定授权成功")
+
+    /** 可绑定的授权等级列表 */
+    fun appLevels(): List<JSONObject> {
+        val arr = Http.postSync("/admin/api/app/levels").optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+    }
+
+    /** 某插件的购买记录（授权），plugin_id 来自商店项 */
+    fun appPurchaseRecords(pluginId: Int): List<JSONObject> {
+        val arr = Http.getSync("/admin/api/app/purchaseRecords", mapOf("plugin_id" to pluginId.toString())).optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+    }
     // ---------- 会员管理 ----------
 
     fun userStatistics(id: Int): JSONObject =
