@@ -489,7 +489,6 @@ private fun PluginLogDialog(handle: String, onDismiss: () -> Unit) {
         }
     )
 }
-}
 
 // ---------- 应用商店 ----------
 @OptIn(ExperimentalMaterial3Api::class)
