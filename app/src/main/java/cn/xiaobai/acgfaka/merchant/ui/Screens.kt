@@ -774,7 +774,6 @@ private fun StoreBindDialog(onDismiss: () -> Unit, onDone: (String) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Composable
 private fun StoreDetailDialog(
     item: JSONObject,
     group: Int,
