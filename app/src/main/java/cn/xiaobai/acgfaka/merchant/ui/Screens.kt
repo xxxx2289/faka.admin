@@ -793,6 +793,8 @@ private fun StoreDetailDialog(
     val pluginId = Json.int(item, "id", Json.int(item, "plugin_id"))
     val hasUpdate = version.isNotBlank() && localVersion.isNotBlank() && version != localVersion
     val paid = price.isNotBlank() && price != "0" && price != "0.00"
+    val hasAuth = item.optJSONObject("has")?.optBoolean("has", false) == true
+    val owned = item.optBoolean("owned", false)
     var busy by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
     var showAuth by remember { mutableStateOf(false) }
@@ -839,7 +841,9 @@ private fun StoreDetailDialog(
                             enabled = !busy, modifier = Modifier.fillMaxWidth()
                         ) { Text("更新到 " + version) }
                     }
-                    OutlinedButton(onClick = { showAuth = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("授权管理 / 解绑") }
+                    if (paid && !hasAuth && owned) {
+                        OutlinedButton(onClick = { showAuth = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("解绑授权至本机") }
+                    }
                     OutlinedButton(
                         onClick = {
                             scope.launch {
@@ -908,8 +912,8 @@ private fun AuthDialog(
                                 onClick = {
                                     scope.launch {
                                         busy = true; msg = null
-                                        runCatching { withContext(Dispatchers.IO) { Api.appBindLevel(authId) } }
-                                            .onSuccess { msg = "已绑定到本机"; load() }
+                                        runCatching { withContext(Dispatchers.IO) { Api.appUnbind(authId) } }
+                                            .onSuccess { msg = "已解绑至本机"; load() }
                                             .onFailure { msg = it.message }
                                         busy = false
                                     }
