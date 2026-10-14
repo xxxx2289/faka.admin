@@ -503,6 +503,7 @@ fun StoreScreen(nav: NavController) {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
+    var detail by remember { mutableStateOf<JSONObject?>(null) }
     val pageSize = 15
 
     fun load(p: Int) {
@@ -559,12 +560,9 @@ fun StoreScreen(nav: NavController) {
                         val localVersion = Json.str(o, "local_version")
                         val installed = Json.int(o, "install") == 1
                         val price = Json.str(o, "price", Json.str(o, "amount"))
-                        val pluginKey = Json.str(o, "plugin_key", Json.str(o, "key"))
-                        val pluginId = Json.int(o, "id", Json.int(o, "plugin_id"))
-                        val hasUpdate = version.isNotBlank() && localVersion.isNotBlank() && version != localVersion
                         val paid = price.isNotBlank() && price != "0" && price != "0.00"
 
-                        Card(Modifier.fillMaxWidth()) {
+                        Card(onClick = { detail = o }, modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
@@ -575,37 +573,8 @@ fun StoreScreen(nav: NavController) {
                                     if (author.isNotBlank()) Text("作者：" + author, style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                                     if (version.isNotBlank()) Text("版本：" + version, style = MaterialTheme.typography.labelSmall)
                                 }
-                                if (localVersion.isNotBlank()) Text("本地版本：" + localVersion, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (paid) Text("价格：¥" + price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    if (!installed) {
-                                        Button(
-                                            onClick = {
-                                                scope.launch {
-                                                    loading = true; msg = null
-                                                    runCatching { withContext(Dispatchers.IO) { Api.appInstall(pluginKey, group, pluginId) } }
-                                                        .onSuccess { msg = "安装完成"; load(page) }
-                                                        .onFailure { error = it.message }
-                                                    loading = false
-                                                }
-                                            },
-                                            modifier = Modifier.weight(1f)
-                                        ) { Text(if (paid) "购买并安装" else "安装") }
-                                    } else if (hasUpdate) {
-                                        Button(
-                                            onClick = {
-                                                scope.launch {
-                                                    loading = true; msg = null
-                                                    runCatching { withContext(Dispatchers.IO) { Api.appUpgrade(pluginKey, group, pluginId) } }
-                                                        .onSuccess { msg = "更新完成"; load(page) }
-                                                        .onFailure { error = it.message }
-                                                    loading = false
-                                                }
-                                            },
-                                            modifier = Modifier.weight(1f)
-                                        ) { Text("更新到 " + version) }
-                                    }
-                                }
+                                Text("点击查看详情与授权管理", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -621,6 +590,171 @@ fun StoreScreen(nav: NavController) {
             }
         }
     }
+
+    detail?.let { o ->
+        StoreDetailDialog(
+            item = o,
+            group = group,
+            onDismiss = { detail = null },
+            onChanged = { m -> msg = m; detail = null; load(page) },
+            onError = { e -> error = e; detail = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StoreDetailDialog(
+    item: JSONObject,
+    group: Int,
+    onDismiss: () -> Unit,
+    onChanged: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val name = htmlClean(Json.str(item, "plugin_name", Json.str(item, "name", "应用")))
+    val desc = htmlClean(Json.str(item, "description"))
+    val author = Json.str(item, "author")
+    val version = Json.str(item, "version")
+    val localVersion = Json.str(item, "local_version")
+    val installed = Json.int(item, "install") == 1
+    val price = Json.str(item, "price", Json.str(item, "amount"))
+    val pluginKey = Json.str(item, "plugin_key", Json.str(item, "key"))
+    val pluginId = Json.int(item, "id", Json.int(item, "plugin_id"))
+    val hasUpdate = version.isNotBlank() && localVersion.isNotBlank() && version != localVersion
+    val paid = price.isNotBlank() && price != "0" && price != "0.00"
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    var showAuth by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(name) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (desc.isNotBlank()) Text(desc, style = MaterialTheme.typography.bodySmall)
+                if (author.isNotBlank()) DetailRow("开发者", author)
+                DetailRow("版本", version.ifBlank { "-" })
+                if (localVersion.isNotBlank()) DetailRow("本地版本", localVersion)
+                DetailRow("状态", if (installed) "已安装" else "未安装")
+                if (paid) DetailRow("价格", "¥" + price)
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                Spacer(Modifier.height(6.dp))
+                Text("可用操作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                if (!installed) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                busy = true; msg = null
+                                runCatching { withContext(Dispatchers.IO) { Api.appInstall(pluginKey, group, pluginId) } }
+                                    .onSuccess { onChanged("安装完成") }
+                                    .onFailure { onError(it.message ?: "安装失败") }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy, modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (paid) "购买并安装" else "安装") }
+                } else {
+                    if (hasUpdate) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    busy = true; msg = null
+                                    runCatching { withContext(Dispatchers.IO) { Api.appUpgrade(pluginKey, group, pluginId) } }
+                                        .onSuccess { onChanged("更新完成") }
+                                        .onFailure { onError(it.message ?: "更新失败") }
+                                    busy = false
+                                }
+                            },
+                            enabled = !busy, modifier = Modifier.fillMaxWidth()
+                        ) { Text("更新到 " + version) }
+                    }
+                    OutlinedButton(onClick = { showAuth = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("授权管理 / 解绑") }
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                busy = true; msg = null
+                                runCatching { withContext(Dispatchers.IO) { Api.appUninstall(pluginKey, group) } }
+                                    .onSuccess { onChanged("卸载完成") }
+                                    .onFailure { onError(it.message ?: "卸载失败") }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("卸载应用") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
+
+    if (showAuth) AuthDialog(pluginId, name, { showAuth = false }, onChanged, onError)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AuthDialog(
+    pluginId: Int,
+    appName: String,
+    onDismiss: () -> Unit,
+    onChanged: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var records by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+
+    fun load() {
+        scope.launch {
+            loading = true
+            records = withContext(Dispatchers.IO) { runCatching { Api.appPurchaseRecords(pluginId) }.getOrDefault(emptyList()) }
+            loading = false
+        }
+    }
+    LaunchedEffect(pluginId) { load() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("授权管理") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(appName, style = MaterialTheme.typography.labelMedium)
+                if (loading) CircularProgressIndicator()
+                if (!loading && records.isEmpty()) Text("暂无授权记录")
+                records.forEach { r ->
+                    val authId = Json.int(r, "id")
+                    val remark = Json.str(r, "remark", Json.str(r, "device"))
+                    val time = Json.str(r, "create_time")
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("授权 #" + authId, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            if (remark.isNotBlank()) Text("设备：" + remark, style = MaterialTheme.typography.labelSmall)
+                            if (time.isNotBlank()) Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        busy = true; msg = null
+                                        runCatching { withContext(Dispatchers.IO) { Api.appBindLevel(authId) } }
+                                            .onSuccess { msg = "已绑定到本机"; load() }
+                                            .onFailure { msg = it.message }
+                                        busy = false
+                                    }
+                                },
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("绑定到本机") }
+                        }
+                    }
+                }
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
+    )
 }
 
 // ---------- 支付设置 ----------
