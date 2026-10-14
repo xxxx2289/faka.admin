@@ -504,7 +504,16 @@ fun StoreScreen(nav: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }
     var detail by remember { mutableStateOf<JSONObject?>(null) }
+    var storeState by remember { mutableStateOf<JSONObject?>(null) }
+    var showLogin by remember { mutableStateOf(false) }
+    var showBind by remember { mutableStateOf(false) }
     val pageSize = 15
+
+    fun loadStoreState() {
+        scope.launch {
+            storeState = withContext(Dispatchers.IO) { runCatching { Api.storeService() }.getOrNull() }
+        }
+    }
 
     fun load(p: Int) {
         scope.launch {
@@ -517,18 +526,25 @@ fun StoreScreen(nav: NavController) {
         }
     }
 
-    LaunchedEffect(group) { load(1) }
+    LaunchedEffect(group) { load(1); loadStoreState() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("应用商店") },
                 navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.Default.ArrowBack, "返回") } },
-                actions = { IconButton(onClick = { load(page) }) { Icon(Icons.Default.Refresh, "刷新") } }
+                actions = { IconButton(onClick = { load(page); loadStoreState() }) { Icon(Icons.Default.Refresh, "刷新") } }
             )
         }
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
+            // ---- 授权状态栏 ----
+            StoreAuthBar(
+                state = storeState,
+                onLogin = { showLogin = true },
+                onUpgrade = { msg = "请在网页端完成企业版购买" },
+                onBind = { showBind = true }
+            )
             ScrollableTabRow(selectedTabIndex = group) {
                 listOf("插件" to 0, "支付" to 1, "主题" to 2).forEach { (label, g) ->
                     Tab(selected = group == g, onClick = { group = g }, text = { Text(label) })
@@ -593,16 +609,171 @@ fun StoreScreen(nav: NavController) {
 
     detail?.let { o ->
         StoreDetailDialog(
-            item = o,
-            group = group,
+            item = o, group = group,
             onDismiss = { detail = null },
             onChanged = { m -> msg = m; detail = null; load(page) },
             onError = { e -> error = e; detail = null }
         )
     }
+
+    if (showLogin) {
+        StoreLoginDialog(
+            onDismiss = { showLogin = false },
+            onDone = { m -> msg = m; showLogin = false; loadStoreState() }
+        )
+    }
+    if (showBind) {
+        StoreBindDialog(
+            onDismiss = { showBind = false },
+            onDone = { m -> msg = m; showBind = false; loadStoreState() }
+        )
+    }
+}
+
+@Composable
+private fun StoreAuthBar(
+    state: JSONObject?,
+    onLogin: () -> Unit,
+    onUpgrade: () -> Unit,
+    onBind: () -> Unit
+) {
+    if (state == null) return
+    val id = Json.int(state, "id")
+    if (id <= 0) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("未登录应用商店账户", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = onLogin) { Text("登录") }
+            }
+        }
+        return
+    }
+    val level = Json.str(state, "level")
+    val haveLevel = Json.int(state, "is_have_level") == 1
+    val boundPro = level == "0"
+    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (boundPro) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("当前设备：专业版", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("升级企业版后全部插件免费", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Button(onClick = onUpgrade, modifier = Modifier.fillMaxWidth()) { Text("升级企业版") }
+        } else {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("当前设备：企业版", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("全部插件免费使用", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (haveLevel) {
+                OutlinedButton(onClick = onBind, modifier = Modifier.fillMaxWidth()) { Text("绑定专业版/企业版") }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StoreLoginDialog(onDismiss: () -> Unit, onDone: (String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("登录应用商店账户") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("访问应用商店需要登录，可下载插件和模板。", style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(username, { username = it }, label = { Text("用户名") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(password, { password = it }, label = { Text("密码") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        busy = true; msg = null
+                        runCatching { withContext(Dispatchers.IO) { Api.storeLogin(username, password) } }
+                            .onSuccess { onDone("商店账户已登录") }
+                            .onFailure { msg = it.message }
+                        busy = false
+                    }
+                },
+                enabled = !busy && username.isNotBlank() && password.isNotBlank()
+            ) { Text("登录") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StoreBindDialog(onDismiss: () -> Unit, onDone: (String) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var levels by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var msg by remember { mutableStateOf<String?>(null) }
+
+    fun load() {
+        scope.launch {
+            loading = true
+            levels = withContext(Dispatchers.IO) { runCatching { Api.storeAuthLevels() }.getOrDefault(emptyList()) }
+            loading = false
+        }
+    }
+    LaunchedEffect(Unit) { load() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("绑定专业版/企业版") },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("转移已有授权，原设备将解除绑定。", style = MaterialTheme.typography.labelSmall)
+                if (loading) CircularProgressIndicator()
+                if (!loading && levels.isEmpty()) Text("账号名下暂无授权")
+                levels.forEach { l ->
+                    val authId = Json.int(l, "id")
+                    val serverIp = Json.str(l, "server_ip")
+                    val lv = Json.int(l, "level")
+                    val expire = Json.str(l, "expire_date")
+                    val appKey = Json.str(l, "app_key")
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(if (lv == 0) "专业版" else "企业版", fontWeight = FontWeight.SemiBold)
+                            if (serverIp.isNotBlank()) Text("服务器IP：" + serverIp, style = MaterialTheme.typography.labelSmall)
+                            if (appKey.isNotBlank()) Text("授权指纹：" + appKey, style = MaterialTheme.typography.labelSmall)
+                            if (expire.isNotBlank()) Text("到期：" + expire, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        busy = true; msg = null
+                                        runCatching { withContext(Dispatchers.IO) { Api.appBindLevel(authId) } }
+                                            .onSuccess { onDone("授权已转移至本机") }
+                                            .onFailure { msg = it.message }
+                                        busy = false
+                                    }
+                                },
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("解绑授权至本机") }
+                        }
+                    }
+                }
+                msg?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 @Composable
 private fun StoreDetailDialog(
     item: JSONObject,
