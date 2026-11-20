@@ -1,0 +1,288 @@
+PS D:\llama.cpp> cd D:\llama.cpp
+PS D:\llama.cpp>
+PS D:\llama.cpp> Select-String -Path .\convert_hf_to_gguf.py -Pattern "outtype|BF16|bf16|torch_dtype|safetensors|mmap" -Context 3,5
+
+  convert_hf_to_gguf.py:54:    )
+  convert_hf_to_gguf.py:55:    parser.add_argument(
+  convert_hf_to_gguf.py:56:        "--outfile", type=Path,
+> convert_hf_to_gguf.py:57:        help="path to write to; default: based on input. {ftype} will be replaced by the out
+type.",
+  convert_hf_to_gguf.py:58:    )
+  convert_hf_to_gguf.py:59:    parser.add_argument(
+> convert_hf_to_gguf.py:60:        "--outtype", type=str, choices=["f32", "f16", "bf16", "q8_0", "tq1_0", "tq2_0", "aut
+o"], default="auto",
+> convert_hf_to_gguf.py:61:        help="output format - use f32 for float32, f16 for float16, bf16 for bfloat16, q8_0
+for Q8_0, tq1_0 or tq2_0 for ternary, and auto to preserve supported FP8 weights and otherwise select the highest-fidel
+ity 16-bit float type",
+  convert_hf_to_gguf.py:62:    )
+  convert_hf_to_gguf.py:63:    parser.add_argument(
+  convert_hf_to_gguf.py:64:        "--bigendian", action="store_true",
+  convert_hf_to_gguf.py:65:        help="model is executed on big endian machine",
+  convert_hf_to_gguf.py:66:    )
+  convert_hf_to_gguf.py:111:    )
+  convert_hf_to_gguf.py:112:    parser.add_argument(
+  convert_hf_to_gguf.py:113:        "--remote", action="store_true",
+> convert_hf_to_gguf.py:114:        help="(Experimental) Read safetensors file remotely without downloading to disk. Co
+nfig and tokenizer files will still be downloaded. To use this feature, you need to specify Hugging Face model repo nam
+e instead of a local directory. For example: 'HuggingFaceTB/SmolLM2-1.7B-Instruct'. Note: To access gated repo, set HF_
+TOKEN environment variable to your Hugging Face token.",
+  convert_hf_to_gguf.py:115:    )
+  convert_hf_to_gguf.py:116:    parser.add_argument(
+  convert_hf_to_gguf.py:117:        "--mmproj", action="store_true",
+  convert_hf_to_gguf.py:118:        help="Export multimodal projector (mmproj) for vision models. This will only work o
+n some vision models. An 'mmproj-' prefix will be added to the output file name.",
+  convert_hf_to_gguf.py:119:    )
+  convert_hf_to_gguf.py:163:    )
+  convert_hf_to_gguf.py:164:    parser.add_argument(
+  convert_hf_to_gguf.py:165:        "--fp8-as-q8", action="store_true",
+> convert_hf_to_gguf.py:166:        help="Store tensors dequantized from FP8 as Q8_0 instead of BF16/F16.",
+  convert_hf_to_gguf.py:167:    )
+  convert_hf_to_gguf.py:168:
+  convert_hf_to_gguf.py:169:    parser.add_argument(
+  convert_hf_to_gguf.py:170:        "--fuse-qkv", action="store_true",
+  convert_hf_to_gguf.py:171:        help="Fuse separate Q, K, V weight tensors into a single QKV tensor.",
+  convert_hf_to_gguf.py:207:        from huggingface_hub import snapshot_download
+  convert_hf_to_gguf.py:208:        allowed_patterns = ["LICENSE", "*.json", "*.md", "*.txt", "tokenizer.model"]
+  convert_hf_to_gguf.py:209:        if args.sentence_transformers_dense_modules:
+> convert_hf_to_gguf.py:210:            # include sentence-transformers dense modules safetensors files
+> convert_hf_to_gguf.py:211:            allowed_patterns.append("*.safetensors")
+  convert_hf_to_gguf.py:212:        local_dir = snapshot_download(
+  convert_hf_to_gguf.py:213:            repo_id=hf_repo_id,
+  convert_hf_to_gguf.py:214:            allow_patterns=allowed_patterns)
+  convert_hf_to_gguf.py:215:        dir_model = Path(local_dir)
+  convert_hf_to_gguf.py:216:        logger.info(f"Downloaded config and tokenizer to {local_dir}")
+  convert_hf_to_gguf.py:225:    ftype_map: dict[str, gguf.LlamaFileType] = {
+  convert_hf_to_gguf.py:226:        "f32": gguf.LlamaFileType.ALL_F32,
+  convert_hf_to_gguf.py:227:        "f16": gguf.LlamaFileType.MOSTLY_F16,
+> convert_hf_to_gguf.py:228:        "bf16": gguf.LlamaFileType.MOSTLY_BF16,
+  convert_hf_to_gguf.py:229:        "q8_0": gguf.LlamaFileType.MOSTLY_Q8_0,
+  convert_hf_to_gguf.py:230:        "tq1_0": gguf.LlamaFileType.MOSTLY_TQ1_0,
+  convert_hf_to_gguf.py:231:        "tq2_0": gguf.LlamaFileType.MOSTLY_TQ2_0,
+  convert_hf_to_gguf.py:232:        "auto": gguf.LlamaFileType.GUESSED,
+  convert_hf_to_gguf.py:233:    }
+  convert_hf_to_gguf.py:253:    disable_mistral_community_chat_template = args.disable_mistral_community_chat_template
+  convert_hf_to_gguf.py:254:
+  convert_hf_to_gguf.py:255:    with torch.inference_mode():
+> convert_hf_to_gguf.py:256:        output_type = ftype_map[args.outtype]
+  convert_hf_to_gguf.py:257:        model_type = ModelType.MMPROJ if args.mmproj else ModelType.TEXT
+  convert_hf_to_gguf.py:258:        hparams = ModelBase.load_hparams(dir_model, is_mistral_format)
+  convert_hf_to_gguf.py:259:        if not is_mistral_format:
+  convert_hf_to_gguf.py:260:            model_architecture = get_model_architecture(hparams, model_type)
+  convert_hf_to_gguf.py:261:            logger.info(f"Model architecture: {model_architecture}")
+
+
+PS D:\llama.cpp> Select-String -Path .\conversion\qwen.py -Pattern "Qwen3_5|visual|vision|mmproj|projector|mtp|model_type" -Context 3,6
+
+  conversion\qwen.py:170:                raise ValueError(f"Unprocessed experts: {experts}")
+  conversion\qwen.py:171:
+  conversion\qwen.py:172:
+> conversion\qwen.py:173:@ModelBase.register("Qwen3ForCausalLM", "Qwen3Model", "LlavaOnevision2ForConditionalGeneration
+")
+  conversion\qwen.py:174:@ModelBase.example("Qwen/Qwen3-8B")
+  conversion\qwen.py:175:class Qwen3Model(Qwen2Model):
+  conversion\qwen.py:176:    model_arch = gguf.MODEL_ARCH.QWEN3
+  conversion\qwen.py:177:
+  conversion\qwen.py:178:    # extra logic for rerank models
+  conversion\qwen.py:179:    is_rerank: bool = False
+  conversion\qwen.py:201:        name_hints = [
+  conversion\qwen.py:202:            str(self.dir_model.name),
+  conversion\qwen.py:203:            str(self.hparams.get("_name_or_path", "")),
+> conversion\qwen.py:204:            str(self.hparams.get("model_type", "")),
+  conversion\qwen.py:205:            str(self.origin_hf_arch or ""),
+  conversion\qwen.py:206:        ]
+  conversion\qwen.py:207:        name_hints = [hint.lower() for hint in name_hints if hint]
+  conversion\qwen.py:208:
+  conversion\qwen.py:209:        if "# qwen3-reranker" in readme_text.lower() or "# qwen3-vl-reranker" in readme_text.l
+ower():
+  conversion\qwen.py:210:            return True
+  conversion\qwen.py:294:        super().set_vocab()
+  conversion\qwen.py:295:
+  conversion\qwen.py:296:
+> conversion\qwen.py:297:class _QwenMtpMixin:
+> conversion\qwen.py:298:    """Shared MTP wiring for Qwen3-Next and Qwen3.5/3.6 text variants. The HF
+> conversion\qwen.py:299:    config carries the MTP block under `mtp_num_hidden_layers` (computed from
+  conversion\qwen.py:300:    the checkpoint when absent, e.g. Qwen3-Next) and the tensors under
+> conversion\qwen.py:301:    `mtp.*`; we extend block_count, emit the nextn metadata key, and remap
+> conversion\qwen.py:302:    `mtp.*` to the standard layer-indexed nextn naming so the existing
+  conversion\qwen.py:303:    tensor_map handles them."""
+  conversion\qwen.py:304:
+> conversion\qwen.py:305:    supports_mtp_export = True
+  conversion\qwen.py:306:    hparams: dict[str, Any]
+  conversion\qwen.py:307:    model_arch: gguf.MODEL_ARCH
+  conversion\qwen.py:308:    gguf_writer: gguf.GGUFWriter
+  conversion\qwen.py:309:    block_count: int
+  conversion\qwen.py:310:    tensor_map: gguf.TensorNameMap
+> conversion\qwen.py:311:    no_mtp: bool
+> conversion\qwen.py:312:    mtp_only: bool
+  conversion\qwen.py:313:    _original_block_count: int | None = None
+> conversion\qwen.py:314:    opt_num_mtp_layers: int = 0
+  conversion\qwen.py:315:
+  conversion\qwen.py:316:    def __init__(self, *args, **kwargs):
+  conversion\qwen.py:317:        super().__init__(*args, **kwargs)
+  conversion\qwen.py:318:        self.block_count = self.hparams["num_hidden_layers"]
+> conversion\qwen.py:319:        if not self.no_mtp:
+> conversion\qwen.py:320:            n_mtp = self.hparams.get("mtp_num_hidden_layers", 0)
+> conversion\qwen.py:321:            # Qwen-3-Next doesn't include `mtp_num_hidden_layers` in config.
+> conversion\qwen.py:322:            if n_mtp == 0:
+> conversion\qwen.py:323:                assert self.opt_num_mtp_layers != 0
+> conversion\qwen.py:324:                n_mtp = self.opt_num_mtp_layers
+> conversion\qwen.py:325:            self.block_count += n_mtp
+  conversion\qwen.py:326:        self.tensor_map = gguf.get_tensor_name_map(self.model_arch, self.block_count)
+  conversion\qwen.py:327:
+  conversion\qwen.py:328:    def index_tensors(self, remote_hf_model_id: str | None = None) -> dict[str, Callable[[], T
+ensor]]:
+  conversion\qwen.py:329:        hparams = {**self.hparams, **self.hparams.get("text_config", {})}
+  conversion\qwen.py:330:        key = next((k for k in ["n_layers", "num_hidden_layers", "n_layer", "num_layers"] if k
+ in hparams), None)
+  conversion\qwen.py:331:        type(self)._original_block_count = hparams.get(key)
+> conversion\qwen.py:332:        type(self).opt_num_mtp_layers = 0
+  conversion\qwen.py:333:        return super().index_tensors(remote_hf_model_id=remote_hf_model_id)  # ty: ignore[miss
+ing-attribute]
+  conversion\qwen.py:334:
+  conversion\qwen.py:335:    @classmethod
+  conversion\qwen.py:336:    def filter_tensors(cls, item):
+  conversion\qwen.py:337:        assert cls._original_block_count is not None
+  conversion\qwen.py:338:        # TODO: change TextModel to super()
+  conversion\qwen.py:339:        if (titem := TextModel.filter_tensors(item)) is None:
+  conversion\qwen.py:340:            return None
+  conversion\qwen.py:341:        name, gen = titem
+> conversion\qwen.py:342:        if name.startswith("model.mtp."):
+  conversion\qwen.py:343:            name = name.replace("model.", "", 1)
+> conversion\qwen.py:344:        if name.startswith("mtp."):
+> conversion\qwen.py:345:            if cls.no_mtp:
+  conversion\qwen.py:346:                return None
+  conversion\qwen.py:347:            remapper = {
+  conversion\qwen.py:348:                "fc":                    "eh_proj",
+  conversion\qwen.py:349:                "pre_fc_norm_embedding": "enorm",
+  conversion\qwen.py:350:                "pre_fc_norm_hidden":    "hnorm",
+  conversion\qwen.py:351:                "norm":                  "shared_head.norm",
+  conversion\qwen.py:352:            }
+  conversion\qwen.py:353:            parts = name.split(".", 3)
+  conversion\qwen.py:354:            if len(parts) == 4 and parts[1] == "layers" and parts[2].isdecimal():
+> conversion\qwen.py:355:                mtp_idx = int(parts[2])
+> conversion\qwen.py:356:                name = f"model.layers.{cls._original_block_count + mtp_idx}.{parts[3]}"
+> conversion\qwen.py:357:                cls.opt_num_mtp_layers = max(cls.opt_num_mtp_layers, mtp_idx + 1)
+  conversion\qwen.py:358:            elif len(parts) == 3 and parts[1] in remapper:
+  conversion\qwen.py:359:                name = f"model.layers.{cls._original_block_count}.{remapper[parts[1]]}.{parts[
+2]}"
+> conversion\qwen.py:360:        elif cls.mtp_only:
+  conversion\qwen.py:361:            keep = name in (
+  conversion\qwen.py:362:                "model.embed_tokens.weight", "model.norm.weight", "lm_head.weight",
+  conversion\qwen.py:363:                "embed_tokens.weight", "norm.weight",
+  conversion\qwen.py:364:            )
+  conversion\qwen.py:365:            if not keep:
+  conversion\qwen.py:366:                return None
+  conversion\qwen.py:368:
+  conversion\qwen.py:369:    def set_gguf_parameters(self):
+  conversion\qwen.py:370:        super().set_gguf_parameters()  # ty: ignore[missing-attribute]
+> conversion\qwen.py:371:        if self.no_mtp:
+  conversion\qwen.py:372:            return
+  conversion\qwen.py:373:        if (n := self.block_count - self.hparams["num_hidden_layers"]) > 0:
+  conversion\qwen.py:374:            self.gguf_writer.add_nextn_predict_layers(n)
+  conversion\qwen.py:375:
+  conversion\qwen.py:376:    def prepare_metadata(self, vocab_only: bool):
+  conversion\qwen.py:377:        from_dir = self.fname_out.is_dir()
+  conversion\qwen.py:378:        super().prepare_metadata(vocab_only=vocab_only)  # ty: ignore[missing-attribute]
+  conversion\qwen.py:379:
+> conversion\qwen.py:380:        if not self.mtp_only or not from_dir:
+  conversion\qwen.py:381:            return
+  conversion\qwen.py:382:
+  conversion\qwen.py:383:        output_type: str = self.ftype.name.partition("_")[2]  # pyright: ignore[reportAttribut
+eAccessIssue] # ty: ignore[missing-attribute]
+  conversion\qwen.py:384:        fname_default: str = gguf.naming_convention(
+  conversion\qwen.py:385:            self.metadata.name, self.metadata.basename, self.metadata.finetune,
+   # pyright: ignore[reportAttributeAccessIssue] # ty: ignore[missing-attribute]
+> conversion\qwen.py:386:            self.metadata.version, size_label=None, output_type=output_type, model_type=None)
+   # pyright: ignore[reportAttributeAccessIssue] # ty: ignore[missing-attribute]
+> conversion\qwen.py:387:        self.fname_out = self.fname_out.parent / f"mtp-{fname_default}.gguf"
+  conversion\qwen.py:388:
+  conversion\qwen.py:389:
+  conversion\qwen.py:390:@ModelBase.register("Qwen3NextForCausalLM")
+  conversion\qwen.py:391:@ModelBase.example("Qwen/Qwen3-Next-80B-A3B-Instruct")
+> conversion\qwen.py:392:class Qwen3NextModel(_QwenMtpMixin, Qwen2MoeModel):
+  conversion\qwen.py:393:    model_arch = gguf.MODEL_ARCH.QWEN3NEXT
+  conversion\qwen.py:394:
+  conversion\qwen.py:395:    def _map_fp8_weight_names(self, name: str) -> tuple[str, ...]:
+  conversion\qwen.py:396:        if name.endswith(".linear_attn.in_proj_qkvz.weight"):
+  conversion\qwen.py:397:            bid = next(int(part) for part in self.map_tensor_name(name).split(".") if part.isd
+ecimal())
+  conversion\qwen.py:398:            # Both split projections keep the original per-tensor scales.
+  conversion\qwen.py:716:
+  conversion\qwen.py:717:
+  conversion\qwen.py:718:class _Qwen35MRopeMixin:
+> conversion\qwen.py:719:    # Qwen3.5 always applies interleaved MRoPE (see Qwen3_5RotaryEmbedding in transformers);
+  conversion\qwen.py:720:    # the upstream default mrope_section is [11, 11, 10] and llama.cpp's QWEN35 / QWEN35MOE
+  conversion\qwen.py:721:    # loaders treat qwen35.rope.dimension_sections as required, so make sure it is always
+  conversion\qwen.py:722:    # written even when a particular checkpoint omits the field in `rope_parameters`.
+  conversion\qwen.py:723:    _QWEN35_DEFAULT_MROPE_SECTION = [11, 11, 10, 0]
+  conversion\qwen.py:724:
+  conversion\qwen.py:725:    gguf_writer: gguf.GGUFWriter
+  conversion\qwen.py:731:            self.gguf_writer.add_rope_dimension_sections(self._QWEN35_DEFAULT_MROPE_SECTION)
+  conversion\qwen.py:732:
+  conversion\qwen.py:733:
+> conversion\qwen.py:734:@ModelBase.register("Qwen3_5ForConditionalGeneration", "Qwen3_5ForCausalLM", "Qwen3_5TextModel
+")
+  conversion\qwen.py:735:@ModelBase.example("Qwen/Qwen3.5-9B")
+> conversion\qwen.py:736:class Qwen3_5TextModel(_Qwen35MRopeMixin, _LinearAttentionVReorderBase):
+  conversion\qwen.py:737:    model_arch = gguf.MODEL_ARCH.QWEN35
+  conversion\qwen.py:738:
+  conversion\qwen.py:739:    _SHARED_INPUT_MERGES = (
+  conversion\qwen.py:740:        (gguf.MODEL_TENSOR.ATTN_QKV_GATE,      (gguf.MODEL_TENSOR.ATTN_QKV, gguf.MODEL_TENSOR.
+ATTN_GATE), True),
+  conversion\qwen.py:741:        (gguf.MODEL_TENSOR.SSM_BETA_ALPHA_CAT, (gguf.MODEL_TENSOR.SSM_BETA, gguf.MODEL_TENSOR.
+SSM_ALPHA), True),
+  conversion\qwen.py:742:    )
+  conversion\qwen.py:743:
+  conversion\qwen.py:744:    def __init__(self, dir_model, *args, **kwargs):
+> conversion\qwen.py:745:        # Inner TextModel does not own mtp.*. Set no_mtp before mixin bumps block_count.
+  conversion\qwen.py:746:        hparams = kwargs.pop("hparams", None)
+  conversion\qwen.py:747:        if hparams is None:
+  conversion\qwen.py:748:            hparams = ModelBase.load_hparams(dir_model, self.is_mistral_format)
+> conversion\qwen.py:749:        if get_model_architecture(hparams, ModelType.TEXT) == "Qwen3_5TextModel":
+> conversion\qwen.py:750:            self.no_mtp = True
+  conversion\qwen.py:751:        super().__init__(dir_model, *args, hparams=hparams, **kwargs)
+  conversion\qwen.py:752:
+  conversion\qwen.py:753:    def set_gguf_parameters(self):
+  conversion\qwen.py:754:        super().set_gguf_parameters()
+  conversion\qwen.py:755:        self._try_set_pooling_type()
+  conversion\qwen.py:756:
+  conversion\qwen.py:757:
+  conversion\qwen.py:758:@ModelBase.register("MiniCPMOCRForSequenceClassification")
+> conversion\qwen.py:759:class MiniCPMOCRSeqClsModel(Qwen3_5TextModel):
+  conversion\qwen.py:760:    # OCR consistency judge: Qwen3.5 VL trunk with a value head read at the last token
+  conversion\qwen.py:761:    # the class scores are [inconsistent, consistent], the softmax temperature is 1
+  conversion\qwen.py:762:    model_arch = gguf.MODEL_ARCH.QWEN35
+> conversion\qwen.py:763:    no_mtp = True  # the checkpoint has no MTP head
+  conversion\qwen.py:764:
+  conversion\qwen.py:765:    CLASS_LABELS = ["inconsistent", "consistent"]
+  conversion\qwen.py:766:
+  conversion\qwen.py:767:    def set_vocab(self):
+  conversion\qwen.py:768:        super().set_vocab()
+  conversion\qwen.py:769:        self.gguf_writer.add_chat_template([{"name": "systemone", "template": self._systemone_
+template()}])
+  conversion\qwen.py:815:
+  conversion\qwen.py:816:@ModelBase.register("OpenJevModel")
+  conversion\qwen.py:817:@ModelBase.example("openjev/openjev")
+> conversion\qwen.py:818:class OpenJevModel(Qwen3_5TextModel):
+  conversion\qwen.py:819:    model_arch = gguf.MODEL_ARCH.QWEN35
+> conversion\qwen.py:820:    no_mtp = True  # the checkpoint has no MTP head
+  conversion\qwen.py:821:
+  conversion\qwen.py:822:    # prompt and calibration follow helper/shim.py of the model repo (text lane)
+  conversion\qwen.py:823:    _LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+  conversion\qwen.py:824:    _TEMPERATURE = 0.85
+  conversion\qwen.py:825:    _TEMPERATURE_NOUL = 1.829074  # applied on top of _TEMPERATURE
+  conversion\qwen.py:826:
+  conversion\qwen.py:857:        self.gguf_writer.add_decision_temperature("noul",   self._TEMPERATURE * self._TEMPERAT
+URE_NOUL)
+  conversion\qwen.py:858:
+  conversion\qwen.py:859:
+> conversion\qwen.py:860:@ModelBase.register("Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausalLM")
+  conversion\qwen.py:861:@ModelBase.example("Qwen/Qwen3.5-35B-A3B")
+> conversion\qwen.py:862:class Qwen3_5MoeTextModel(_Qwen35MRopeMixin, _LinearAttentionVReorderBase):
+  conversion\qwen.py:863:    model_arch = gguf.MODEL_ARCH.QWEN35MOE
+  conversion\qwen.py:864:
+  conversion\qwen.py:865:
+  conversion\qwen.py:866:@ModelBase.register("DFlashDraftModel", "DFlash2DraftModel")
+  conversion\qwen.py:867:@ModelBase.example("z-lab/Qwen3.5-9B-DFlash")
+  conversion\qwen.py:868:class DFlashModel(Qwen3Model):
+
