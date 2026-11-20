@@ -1,0 +1,308 @@
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Users\22892> cd D:\llama.cpp
+PS D:\llama.cpp> py -3.11 -m venv .venv
+PS D:\llama.cpp> .\.venv\Scripts\python.exe --version
+Python 3.11.9
+PS D:\llama.cpp> .\.venv\Scripts\python.exe convert_hf_to_gguf.py --help
+Traceback (most recent call last):
+  File "D:\llama.cpp\convert_hf_to_gguf.py", line 12, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+PS D:\llama.cpp> .\.venv\Scripts\python.exe -m pip install --upgrade pip
+Requirement already satisfied: pip in d:\llama.cpp\.venv\lib\site-packages (24.0)
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting pip
+  Downloading pip-26.3-py3-none-any.whl.metadata (4.6 kB)
+Downloading pip-26.3-py3-none-any.whl (2.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 502.9 kB/s eta 0:00:00
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 24.0
+    Uninstalling pip-24.0:
+      Successfully uninstalled pip-24.0
+Successfully installed pip-26.3
+PS D:\llama.cpp> .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+Looking in indexes: https://download.pytorch.org/whl/cpu
+Collecting torch
+  Downloading torch-2.15.0%2Bcpu-cp311-cp311-win_amd64.whl.metadata (36 kB)
+Collecting filelock (from torch)
+  Downloading filelock-4.2.4-py3-none-any.whl.metadata (2.0 kB)
+Collecting typing-extensions>=4.13.0 (from torch)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting setuptools>=77.0.3 (from torch)
+  Downloading setuptools-78.1.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting sympy>=1.13.3 (from torch)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx>=2.5.1 (from torch)
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting jinja2 (from torch)
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting fsspec>=0.8.5 (from torch)
+  Downloading fsspec-2026.9.0-py3-none-any.whl.metadata (10 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Collecting MarkupSafe>=2.0 (from jinja2->torch)
+  Downloading markupsafe-3.0.3-cp311-cp311-win_amd64.whl.metadata (2.8 kB)
+Downloading torch-2.15.0%2Bcpu-cp311-cp311-win_amd64.whl (126.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 126.6/126.6 MB 2.6 MB/s  0:00:54
+Downloading fsspec-2026.9.0-py3-none-any.whl (221 kB)
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 281.9 kB/s  0:00:07
+Downloading setuptools-78.1.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 1.3 MB/s  0:00:01
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 504.4 kB/s  0:00:13
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 675.0 kB/s  0:00:01
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading filelock-4.2.4-py3-none-any.whl (162 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp311-cp311-win_amd64.whl (15 kB)
+Installing collected packages: mpmath, typing-extensions, sympy, setuptools, networkx, MarkupSafe, fsspec, filelock, jinja2, torch
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 65.5.0
+    Uninstalling setuptools-65.5.0:
+      Successfully uninstalled setuptools-65.5.0
+Successfully installed MarkupSafe-3.0.3 filelock-4.2.4 fsspec-2026.9.0 jinja2-3.1.6 mpmath-1.3.0 networkx-3.6.1 setuptools-78.1.0 sympy-1.14.0 torch-2.15.0+cpu typing-extensions-4.16.0
+PS D:\llama.cpp> .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+Looking in indexes: https://download.pytorch.org/whl/cpu
+Requirement already satisfied: torch in .\.venv\Lib\site-packages (2.15.0+cpu)
+Requirement already satisfied: filelock in .\.venv\Lib\site-packages (from torch) (4.2.4)
+Requirement already satisfied: typing-extensions>=4.13.0 in .\.venv\Lib\site-packages (from torch) (4.16.0)
+Requirement already satisfied: setuptools>=77.0.3 in .\.venv\Lib\site-packages (from torch) (78.1.0)
+Requirement already satisfied: sympy>=1.13.3 in .\.venv\Lib\site-packages (from torch) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in .\.venv\Lib\site-packages (from torch) (3.6.1)
+Requirement already satisfied: jinja2 in .\.venv\Lib\site-packages (from torch) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in .\.venv\Lib\site-packages (from torch) (2026.9.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in .\.venv\Lib\site-packages (from sympy>=1.13.3->torch) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in .\.venv\Lib\site-packages (from jinja2->torch) (3.0.3)
+PS D:\llama.cpp> Test-Path .\requirements.txt
+True
+PS D:\llama.cpp> .\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu, https://download.pytorch.org/whl/cpu, https://download.pytorch.org/whl/cpu
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring torch: markers 'python_version >= "3.15"' don't match your environment
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring torch: markers 'python_version >= "3.15"' don't match your environment
+Ignoring matplotlib: markers 'python_version < "3.11"' don't match your environment
+Ignoring numpy: markers 'python_version >= "3.14"' don't match your environment
+Ignoring pandas: markers 'python_version < "3.11"' don't match your environment
+Collecting numpy~=2.2.6 (from -r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 1))
+  Downloading numpy-2.2.6-cp311-cp311-win_amd64.whl.metadata (60 kB)
+Collecting sentencepiece<0.3.0,>=0.1.98 (from -r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 3))
+  Downloading sentencepiece-0.2.3-cp311-cp311-win_amd64.whl.metadata (35 kB)
+Collecting transformers==4.57.6 (from -r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading transformers-4.57.6-py3-none-any.whl.metadata (43 kB)
+Collecting gguf>=0.1.0 (from -r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 7))
+  Downloading gguf-0.19.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting protobuf<5.0.0,>=4.21.0 (from -r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 8))
+  Downloading protobuf-4.25.9-cp310-abi3-win_amd64.whl.metadata (541 bytes)
+Collecting torch==2.11.0 (from -r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5))
+  Downloading torch-2.11.0%2Bcpu-cp311-cp311-win_amd64.whl.metadata (29 kB)
+Collecting pytest~=8.3.3 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 1))
+  Downloading pytest-8.3.5-py3-none-any.whl.metadata (7.6 kB)
+Collecting matplotlib~=3.11.2 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading matplotlib-3.11.2-cp311-cp311-win_amd64.whl.metadata (80 kB)
+Collecting openai~=2.14.0 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading openai-2.14.0-py3-none-any.whl.metadata (29 kB)
+Collecting pandas~=3.0.6 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 8))
+  Downloading pandas-3.0.6-cp311-cp311-win_amd64.whl.metadata (19 kB)
+Collecting prometheus-client~=0.20.0 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 9))
+  Downloading prometheus_client-0.20.0-py3-none-any.whl.metadata (1.8 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting requests~=2.32.3 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 10))
+  Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+Collecting wget~=3.2 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 11))
+  Downloading wget-3.2.zip (10 kB)
+  Installing build dependencies ... done
+  Getting requirements to build wheel ... done
+  Preparing metadata (pyproject.toml) ... done
+Collecting typer~=0.24.1 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading typer-0.24.2-py3-none-any.whl.metadata (15 kB)
+Collecting seaborn~=0.13.2 (from -r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 13))
+  Downloading seaborn-0.13.2-py3-none-any.whl.metadata (5.4 kB)
+Requirement already satisfied: filelock in .\.venv\Lib\site-packages (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5)) (4.2.4)
+Collecting huggingface-hub<1.0,>=0.34.0 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading huggingface_hub-0.36.2-py3-none-any.whl.metadata (15 kB)
+Collecting packaging>=20.0 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pyyaml>=5.1 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading pyyaml-6.0.3-cp311-cp311-win_amd64.whl.metadata (2.4 kB)
+Collecting regex!=2019.12.17 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading regex-2026.11.19-cp311-cp311-win_amd64.whl.metadata (41 kB)
+Collecting tokenizers<=0.23.0,>=0.22.0 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading tokenizers-0.22.2-cp39-abi3-win_amd64.whl.metadata (7.4 kB)
+Collecting safetensors>=0.4.3 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading safetensors-0.8.0-cp310-abi3-win_amd64.whl.metadata (4.2 kB)
+Collecting tqdm>=4.27 (from transformers==4.57.6->-r D:\llama.cpp\requirements\requirements-convert_legacy_llama.txt (line 5))
+  Downloading tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+Requirement already satisfied: typing-extensions>=4.10.0 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (4.16.0)
+Requirement already satisfied: setuptools<82 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (78.1.0)
+Requirement already satisfied: sympy>=1.13.3 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (3.6.1)
+Requirement already satisfied: jinja2 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in .\.venv\Lib\site-packages (from torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (2026.9.0)
+Collecting colorama (from pytest~=8.3.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 1))
+  Downloading colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Collecting iniconfig (from pytest~=8.3.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 1))
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting pluggy<2,>=1.5 (from pytest~=8.3.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 1))
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting contourpy>=1.0.1 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading contourpy-1.3.3-cp311-cp311-win_amd64.whl.metadata (5.5 kB)
+Collecting cycler>=0.10 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+Collecting fonttools>=4.28.2 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading fonttools-4.68.0-cp311-cp311-win_amd64.whl.metadata (142 kB)
+Collecting kiwisolver>=1.3.1 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading kiwisolver-1.5.1-cp311-cp311-win_amd64.whl.metadata (5.2 kB)
+Collecting pillow>=9 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading pillow-13.0.0-cp311-cp311-win_amd64.whl.metadata (9.3 kB)
+Collecting pyparsing>=3 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading pyparsing-3.3.3-py3-none-any.whl.metadata (5.9 kB)
+Collecting python-dateutil>=2.7 (from matplotlib~=3.11.2->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 3))
+  Downloading python_dateutil-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+Collecting anyio<5,>=3.5.0 (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading anyio-4.16.0-py3-none-any.whl.metadata (4.7 kB)
+Collecting distro<2,>=1.7.0 (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+Collecting httpx<1,>=0.23.0 (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting jiter<1,>=0.10.0 (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading jiter-0.19.0-cp311-cp311-win_amd64.whl.metadata (5.3 kB)
+Collecting pydantic<3,>=1.9.0 (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading pydantic-2.14.4-py3-none-any.whl.metadata (143 kB)
+Collecting sniffio (from openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Collecting tzdata (from pandas~=3.0.6->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 8))
+  Downloading tzdata-2026.6-py2.py3-none-any.whl.metadata (1.4 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting charset_normalizer<4,>=2 (from requests~=2.32.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 10))
+  Downloading charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl.metadata (47 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting idna<4,>=2.5 (from requests~=2.32.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 10))
+  Downloading idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting urllib3<3,>=1.21.1 (from requests~=2.32.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 10))
+  Downloading urllib3-2.8.0-py3-none-any.whl.metadata (7.4 kB)
+WARNING: Cache entry deserialization failed, entry ignored
+WARNING: Cache entry deserialization failed, entry ignored
+Collecting certifi>=2017.4.17 (from requests~=2.32.3->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 10))
+  Downloading certifi-2026.10.23-py3-none-any.whl.metadata (2.5 kB)
+Collecting click>=8.2.1 (from typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading click-8.5.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting shellingham>=1.3.0 (from typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+Collecting rich>=12.3.0 (from typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting annotated-doc>=0.0.2 (from typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading annotated_doc-0.0.7-py3-none-any.whl.metadata (6.4 kB)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3,>=1.9.0->openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.50.5 (from pydantic<3,>=1.9.0->openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading pydantic_core-2.50.5-cp311-cp311-win_amd64.whl.metadata (6.7 kB)
+Collecting typing-inspection>=0.4.4 (from pydantic<3,>=1.9.0->openai~=2.14.0->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 6))
+  Downloading typing_inspection-0.4.5-py3-none-any.whl.metadata (2.6 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=12.3.0->typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading markdown_it_py-4.3.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting pygments<3.0.0,>=2.13.0 (from rich>=12.3.0->typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=12.3.0->typer~=0.24.1->-r D:\llama.cpp\requirements\requirements-tool_bench.txt (line 12))
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in .\.venv\Lib\site-packages (from sympy>=1.13.3->torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in .\.venv\Lib\site-packages (from jinja2->torch==2.11.0->-r D:\llama.cpp\requirements\requirements-convert_hf_to_gguf.txt (line 5)) (3.0.3)
+Downloading transformers-4.57.6-py3-none-any.whl (12.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.0/12.0 MB 384.7 kB/s  0:00:49
+Downloading torch-2.11.0%2Bcpu-cp311-cp311-win_amd64.whl (114.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 MB 2.4 MB/s  0:01:28
+Downloading numpy-2.2.6-cp311-cp311-win_amd64.whl (12.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.9/12.9 MB 1.4 MB/s  0:00:09
+Downloading sentencepiece-0.2.3-cp311-cp311-win_amd64.whl (1.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 1.3 MB/s  0:00:01
+Downloading protobuf-4.25.9-cp310-abi3-win_amd64.whl (413 kB)
+Downloading pytest-8.3.5-py3-none-any.whl (343 kB)
+Downloading matplotlib-3.11.2-cp311-cp311-win_amd64.whl (9.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.3/9.3 MB 1.8 MB/s  0:00:05
+Downloading openai-2.14.0-py3-none-any.whl (1.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 1.2 MB/s  0:00:00
+Downloading pandas-3.0.6-cp311-cp311-win_amd64.whl (9.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.9/9.9 MB 2.5 MB/s  0:00:04
+Downloading prometheus_client-0.20.0-py3-none-any.whl (54 kB)
+Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+Downloading typer-0.24.2-py3-none-any.whl (55 kB)
+Downloading seaborn-0.13.2-py3-none-any.whl (294 kB)
+Downloading anyio-4.16.0-py3-none-any.whl (134 kB)
+Downloading charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl (214 kB)
+Downloading distro-1.9.0-py3-none-any.whl (20 kB)
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading huggingface_hub-0.36.2-py3-none-any.whl (566 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 146.4 kB/s  0:00:03
+Downloading idna-3.20-py3-none-any.whl (69 kB)
+Downloading jiter-0.19.0-cp311-cp311-win_amd64.whl (226 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading pydantic-2.14.4-py3-none-any.whl (494 kB)
+Downloading pydantic_core-2.50.5-cp311-cp311-win_amd64.whl (2.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 128.1 kB/s  0:00:18
+Downloading tokenizers-0.22.2-cp39-abi3-win_amd64.whl (2.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.7/2.7 MB 198.9 kB/s  0:00:14
+Downloading urllib3-2.8.0-py3-none-any.whl (135 kB)
+Downloading gguf-0.19.0-py3-none-any.whl (118 kB)
+Downloading annotated_doc-0.0.7-py3-none-any.whl (5.3 kB)
+Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Downloading certifi-2026.10.23-py3-none-any.whl (135 kB)
+Downloading click-8.5.1-py3-none-any.whl (126 kB)
+Downloading contourpy-1.3.3-cp311-cp311-win_amd64.whl (225 kB)
+Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Downloading fonttools-4.68.0-cp311-cp311-win_amd64.whl (1.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 325.7 kB/s  0:00:05
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading kiwisolver-1.5.1-cp311-cp311-win_amd64.whl (70 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading pillow-13.0.0-cp311-cp311-win_amd64.whl (7.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.3/7.3 MB 2.0 MB/s  0:00:04
+Downloading pyparsing-3.3.3-py3-none-any.whl (126 kB)
+Downloading python_dateutil-4.0.0-py3-none-any.whl (92 kB)
+Downloading pyyaml-6.0.3-cp311-cp311-win_amd64.whl (158 kB)
+Downloading regex-2026.11.19-cp311-cp311-win_amd64.whl (281 kB)
+Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 4.2 MB/s  0:00:00
+Downloading markdown_it_py-4.3.0-py3-none-any.whl (96 kB)
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading safetensors-0.8.0-cp310-abi3-win_amd64.whl (355 kB)
+Downloading shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Downloading tqdm-4.70.1-py3-none-any.whl (80 kB)
+Downloading typing_inspection-0.4.5-py3-none-any.whl (14 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+Building wheels for collected packages: wget
+  Building wheel for wget (pyproject.toml) ... done
+  Created wheel for wget: filename=wget-3.2-py3-none-any.whl size=9711 sha256=e7db7633c48a87ef78577bfdf826a7131dc4dcc62c8e523f72d205a95eb8c9c1
+  Stored in directory: c:\users\22892\appdata\local\pip\cache\wheels\40\b3\0f\a40dbd1c6861731779f62cc4babcb234387e11d697df70ee97
+Successfully built wget
+Installing collected packages: wget, urllib3, tzdata, typing-inspection, sniffio, shellingham, sentencepiece, safetensors, regex, pyyaml, pyparsing, pygments, pydantic-core, protobuf, prometheus-client, pluggy, pillow, packaging, numpy, mdurl, kiwisolver, jiter, iniconfig, idna, h11, fonttools, distro, cycler, colorama, click, charset_normalizer, certifi, annotated-types, annotated-doc, tqdm, torch, requests, python-dateutil, pytest, pydantic, markdown-it-py, httpcore, contourpy, anyio, rich, pandas, matplotlib, huggingface-hub, httpx, gguf, typer, tokenizers, seaborn, openai, transformers
+  Attempting uninstall: torch
+    Found existing installation: torch 2.15.0+cpu
+    Uninstalling torch-2.15.0+cpu:
+      Successfully uninstalled torch-2.15.0+cpu
+Successfully installed annotated-doc-0.0.7 annotated-types-0.8.0 anyio-4.16.0 certifi-2026.10.23 charset_normalizer-3.5.2 click-8.5.1 colorama-0.4.6 contourpy-1.3.3 cycler-0.12.1 distro-1.9.0 fonttools-4.68.0 gguf-0.19.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-0.36.2 idna-3.20 iniconfig-2.3.1 jiter-0.19.0 kiwisolver-1.5.1 markdown-it-py-4.3.0 matplotlib-3.11.2 mdurl-0.1.2 numpy-2.2.6 openai-2.14.0 packaging-26.3 pandas-3.0.6 pillow-13.0.0 pluggy-1.7.0 prometheus-client-0.20.0 protobuf-4.25.9 pydantic-2.14.4 pydantic-core-2.50.5 pygments-2.21.0 pyparsing-3.3.3 pytest-8.3.5 python-dateutil-4.0.0 pyyaml-6.0.3 regex-2026.11.19 requests-2.32.5 rich-15.0.0 safetensors-0.8.0 seaborn-0.13.2 sentencepiece-0.2.3 shellingham-1.5.4 sniffio-1.3.1 tokenizers-0.22.2 torch-2.11.0+cpu tqdm-4.70.1 transformers-4.57.6 typer-0.24.2 typing-inspection-0.4.5 tzdata-2026.6 urllib3-2.8.0 wget-3.2
+PS D:\llama.cpp>
+PS D:\llama.cpp> .\.venv\Scripts\python.exe -c "import torch; print('PyTorch:',torch.__version__); print('CUDA available:',torch.cuda.is_available())"
+PyTorch: 2.11.0+cpu
+CUDA available: False
+PS D:\llama.cpp>
