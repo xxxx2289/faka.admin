@@ -1,0 +1,614 @@
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Users\22892> cd D:\llama.cpp
+PS D:\llama.cpp>
+PS D:\llama.cpp> .\.venv\Scripts\python.exe convert_hf_to_gguf.py --help
+usage: convert_hf_to_gguf.py [-h] [--vocab-only] [--outfile OUTFILE] [--outtype {f32,f16,bf16,q8_0,tq1_0,tq2_0,auto}]
+                             [--bigendian] [--use-temp-file] [--no-lazy] [--model-name MODEL_NAME] [--verbose]
+                             [--split-max-tensors SPLIT_MAX_TENSORS] [--split-max-size SPLIT_MAX_SIZE] [--dry-run]
+                             [--no-tensor-first-split] [--metadata METADATA] [--print-supported-models] [--remote]
+                             [--mmproj] [--mtp] [--no-nextn] [--ple-only | --no-ple] [--dspark] [--mistral-format]
+                             [--disable-mistral-community-chat-template] [--sentence-transformers-dense-modules]
+                             [--fuse-gate-up-exps] [--fp8-as-q8] [--fuse-qkv] [--target-model-dir TARGET_MODEL_DIR]
+                             [model]
+
+Convert a huggingface model to a GGML compatible file
+
+positional arguments:
+  model                 directory containing model file or huggingface repository ID (if --remote)
+
+options:
+  -h, --help            show this help message and exit
+  --vocab-only          extract only the vocab
+  --outfile OUTFILE     path to write to; default: based on input. {ftype} will be replaced by the outtype.
+  --outtype {f32,f16,bf16,q8_0,tq1_0,tq2_0,auto}
+                        output format - use f32 for float32, f16 for float16, bf16 for bfloat16, q8_0 for Q8_0, tq1_0
+                        or tq2_0 for ternary, and auto to preserve supported FP8 weights and otherwise select the
+                        highest-fidelity 16-bit float type
+  --bigendian           model is executed on big endian machine
+  --use-temp-file       use the tempfile library while processing (helpful when running out of memory, process killed)
+  --no-lazy             use more RAM by computing all outputs before writing (use in case lazy evaluation is broken)
+  --model-name MODEL_NAME
+                        name of the model
+  --verbose             increase output verbosity
+  --split-max-tensors SPLIT_MAX_TENSORS
+                        max tensors in each split
+  --split-max-size SPLIT_MAX_SIZE
+                        max size per split N(M|G)
+  --dry-run             only print out a split plan and exit, without writing any new files
+  --no-tensor-first-split
+                        do not add tensors to the first split (disabled by default)
+  --metadata METADATA   Specify the path for an authorship metadata override file
+  --print-supported-models
+                        Print the supported models
+  --remote              (Experimental) Read safetensors file remotely without downloading to disk. Config and
+                        tokenizer files will still be downloaded. To use this feature, you need to specify Hugging
+                        Face model repo name instead of a local directory. For example:
+                        'HuggingFaceTB/SmolLM2-1.7B-Instruct'. Note: To access gated repo, set HF_TOKEN environment
+                        variable to your Hugging Face token.
+  --mmproj              Export multimodal projector (mmproj) for vision models. This will only work on some vision
+                        models. An 'mmproj-' prefix will be added to the output file name.
+  --mtp                 Export only the multi-token prediction (MTP) head as a separate GGUF, suitable for use as a
+                        speculative draft. An 'mtp-' prefix will be added to the output file name.
+  --no-nextn, --no-mtp  Exclude NextN speculative draft tensors from the converted GGUF. Pair with --mtp or --dspark
+                        on a second run to publish target and draft as two files.
+  --ple-only            Export only the per-layer embedding table as a separate GGUF for use with --shard (alias:
+                        --ple).
+  --no-ple              Exclude the per-layer embedding table while retaining its metadata. Load the table separately
+                        with --shard (alias: --ple).
+  --dspark              Export only the DeepSeek-V4 or Mistral Large 4 DSpark draft tensors as a separate GGUF.
+  --mistral-format      Whether the model is stored following the Mistral format.
+  --disable-mistral-community-chat-template
+                        Whether to disable usage of Mistral community chat templates. If set, use the Mistral official
+                        `mistral-common` library for tokenization and detokenization of Mistral models. Using
+                        `mistral-common` ensure correctness and zero-day support of tokenization for models converted
+                        from the Mistral format but requires to manually setup the tokenization server.
+  --sentence-transformers-dense-modules
+                        Whether to include sentence-transformers dense modules. It can be used for sentence-
+                        transformers models, like google/embeddinggemma-300m. Default these modules are not included.
+  --fuse-gate-up-exps   Fuse gate_exps and up_exps tensors into a single gate_up_exps tensor for MoE models.
+  --fp8-as-q8           Store tensors dequantized from FP8 as Q8_0 instead of BF16/F16.
+  --fuse-qkv            Fuse separate Q, K, V weight tensors into a single QKV tensor.
+  --target-model-dir TARGET_MODEL_DIR
+                        path to the target model directory; required when converting a standalone draft model (e.g.
+                        EAGLE3 / DFlash) that needs target-model metadata such as tokenizer, hidden size, and layer
+                        count to populate its GGUF.
+PS D:\llama.cpp> .\.venv\Scripts\python.exe convert_hf_to_gguf.py --print-supported-models | Select-String "Qwen3_5|Qwen3.5"
+Supported models:
+TEXT models:
+  - AfmoeForCausalLM
+  - ApertusForCausalLM
+  - ArceeForCausalLM
+  - ArcticForCausalLM
+  - AudioFlamingo3ForConditionalGeneration
+  - BaiChuanForCausalLM
+  - BaichuanForCausalLM
+  - BailingMoeForCausalLM
+  - BailingMoeV2ForCausalLM
+  - BailingMoeV3ForCausalLM
+  - BailingMoeV3VLForConditionalGeneration
+  - BambaForCausalLM
+  - BeamForCausalLM
+  - BertForMaskedLM
+  - BertForSequenceClassification
+  - BertModel
+  - BitNetForCausalLM
+  - BitnetForCausalLM
+  - BloomForCausalLM
+  - BloomModel
+  - CamembertModel
+  - ChameleonForCausalLM
+  - ChameleonForConditionalGeneration
+  - ChatGLMForConditionalGeneration
+  - ChatGLMModel
+  - ChatterboxModel
+  - ClefModel
+  - CloverMoeModelLM
+  - CodeShellForCausalLM
+  - CogVLMForCausalLM
+  - Cohere2ForCausalLM
+  - Cohere2MoeForCausalLM
+  - CohereForCausalLM
+  - D1Model
+  - D1OmniModel
+  - DFlash2DraftModel
+  - DFlashDraftModel
+  - DSparkDraftModel
+  - DSparkMiniMaxDraftModel
+  - DSparkSpeculator
+  - DbrxForCausalLM
+  - DeciLMForCausalLM
+  - DeepseekForCausalLM
+  - DeepseekOCRForCausalLM
+  - DeepseekV2ForCausalLM
+  - DeepseekV32ForCausalLM
+  - DeepseekV3ForCausalLM
+  - DeepseekV41ForCausalLM
+  - DeepseekV4DSparkModel
+  - DeepseekV4ForCausalLM
+  - DistilBertForMaskedLM
+  - DistilBertForSequenceClassification
+  - DistilBertModel
+  - Dots1ForCausalLM
+  - Dots3NoteForCausalLM
+  - Dots3NoteForConditionalGeneration
+  - Dots3NoteTextForCausalLM
+  - DotsOCRForCausalLM
+  - DreamModel
+  - Eagle3DraftModel
+  - Eagle3LlamaForCausalLM
+  - Eagle3Speculator
+  - EmbeddingGemma2Model
+  - Ernie4_5ForCausalLM
+  - Ernie4_5_ForCausalLM
+  - Ernie4_5_MoeForCausalLM
+  - EuroBertModel
+  - Exaone4ForCausalLM
+  - Exaone4_5_ForConditionalGeneration
+  - ExaoneForCausalLM
+  - ExaoneMoEForCausalLM
+  - ExaoneMoeForCausalLM
+  - FalconForCausalLM
+  - FalconH1ForCausalLM
+  - FalconMambaForCausalLM
+  - FishOmniModel
+  - FlintForCausalLM
+  - GPT2LMHeadModel
+  - GPTBigCodeForCausalLM
+  - GPTNeoXForCausalLM
+  - GPTRefactForCausalLM
+  - Gemma2ForCausalLM
+  - Gemma3ForCausalLM
+  - Gemma3ForConditionalGeneration
+  - Gemma3TextModel
+  - Gemma3nForCausalLM
+  - Gemma3nForConditionalGeneration
+  - Gemma4AssistantForCausalLM
+  - Gemma4DSparkModel
+  - Gemma4ForCausalLM
+  - Gemma4ForConditionalGeneration
+  - Gemma4UnifiedAssistantForCausalLM
+  - Gemma4UnifiedForConditionalGeneration
+  - GemmaForCausalLM
+  - Glm4ForCausalLM
+  - Glm4MoeForCausalLM
+  - Glm4MoeLiteForCausalLM
+  - Glm4vForConditionalGeneration
+  - Glm4vMoeForConditionalGeneration
+  - Glm5NextForConditionalGeneration
+  - GlmForCausalLM
+  - GlmMoeDsaForCausalLM
+  - GlmOcrForConditionalGeneration
+  - GptOssForCausalLM
+  - Granite4VisionForConditionalGeneration
+  - GraniteForCausalLM
+  - GraniteMoeForCausalLM
+  - GraniteMoeHybridForCausalLM
+  - GraniteMoeSWAForCausalLM
+  - GraniteMoeSharedForCausalLM
+  - GraniteSWAForCausalLM
+  - GraniteSpeechForConditionalGeneration
+  - GraniteSpeechPlusForConditionalGeneration
+  - GraniteSwitchForCausalLM
+  - Grok1ForCausalLM
+  - GrokForCausalLM
+  - GroveMoeForCausalLM
+  - H2OLightningModel
+  - HYV3ForCausalLM
+  - HYV4ForCausalLM
+  - HiggsAudio3Model
+  - HrmTextForCausalLM
+  - HunYuanDenseV1ForCausalLM
+  - HunYuanMoEV1ForCausalLM
+  - HunYuanVLForConditionalGeneration
+  - IQuestCoderForCausalLM
+  - Inkling2ForCausalLM
+  - Inkling2ForConditionalGeneration
+  - InternLM2ForCausalLM
+  - InternLM3ForCausalLM
+  - JAISLMHeadModel
+  - Jais2ForCausalLM
+  - JambaForCausalLM
+  - JanusForConditionalGeneration
+  - JinaBertForMaskedLM
+  - JinaBertModel
+  - JinaEmbeddingsV5Model
+  - K2HorizonForCausalLM
+  - KORMoForCausalLM
+  - KevModel
+  - KimiK25ForConditionalGeneration
+  - KimiK31ForConditionalGeneration
+  - KimiK3ForConditionalGeneration
+  - KimiLinearForCausalLM
+  - KimiLinearModel
+  - KimiVLForConditionalGeneration
+  - KokoroModel
+  - Kolibri1ForCausalLM
+  - LFM2ForCausalLM
+  - LLaDAMoEModel
+  - LLaDAMoEModelLM
+  - LLaDAModelLM
+  - LLaMAForCausalLM
+  - LagunaForCausalLM
+  - LevModel
+  - Lfm25AudioTokenizer
+  - Lfm2BidirectionalForMaskedLM
+  - Lfm2BidirectionalModel
+  - Lfm2DSparkDraftModel
+  - Lfm2ForCausalLM
+  - Lfm2Model
+  - Lfm2MoeForCausalLM
+  - Lfm3D1Model
+  - Lfm3ForCausalLM
+  - Lfm3OmniForConditionalGeneration
+  - Lfm3VlForConditionalGeneration
+  - LiLiCorrDraftModel
+  - LimiteForCausalLM
+  - LingDSparkModel
+  - Llama4ForCausalLM
+  - Llama4ForConditionalGeneration
+  - LlamaBidirectionalModel
+  - LlamaForCausalLM
+  - LlamaForCausalLMEagle3
+  - LlamaModel
+  - LlavaForConditionalGeneration
+  - LlavaOnevision2ForConditionalGeneration
+  - LlavaStableLMEpochForCausalLM
+  - MPTForCausalLM
+  - MT5ForConditionalGeneration
+  - MaincoderForCausalLM
+  - Mamba2ForCausalLM
+  - MambaForCausalLM
+  - MambaLMHeadModel
+  - MapleForCausalLM
+  - MellumForCausalLM
+  - Metis16ForCausalLM
+  - MiMoV2FlashForCausalLM
+  - MiMoV2ForCausalLM
+  - MiniCPM3ForCausalLM
+  - MiniCPMForCausalLM
+  - MiniCPMOCRForSequenceClassification
+  - MiniCPMOcrForConditionalGeneration
+  - MiniCPMV4_6ForConditionalGeneration
+  - MiniCPMV4_7ForConditionalGeneration
+  - MiniMaxM1ForCausalLM
+  - MiniMaxM2ForCausalLM
+  - MiniMaxM3SparseForCausalLM
+  - MiniMaxM3SparseForConditionalGeneration
+  - MiniMaxMusic3ForConditionalGeneration
+  - MiniMaxText01ForCausalLM
+  - Ministral3ForCausalLM
+  - Ministral3Model
+  - Mistral3ForConditionalGeneration
+  - Mistral3Model
+  - MistralForCausalLM
+  - MistralLarge4ForConditionalGeneration
+  - MixtralForCausalLM
+  - ModernBertDecisionModel
+  - ModernBertForMaskedLM
+  - ModernBertForSequenceClassification
+  - ModernBertModel
+  - MuseGlimmerAssistantModel
+  - MuseGlimmerForConditionalGeneration
+  - MuseSparkForConditionalGeneration
+  - NEOChatModel
+  - NanbeigeForCausalLM
+  - Nemotron3_5TranscribeForConditionalGeneration
+  - NemotronForCausalLM
+  - NemotronHForCausalLM
+  - NemotronHPuzzleForCausalLM
+  - NeoBERT
+  - NeoBERTForSequenceClassification
+  - NeoBERTLMHead
+  - NimbleModel
+  - NomicBertModel
+  - OLMoForCausalLM
+  - Olmo2ForCausalLM
+  - Olmo3ForCausalLM
+  - OlmoForCausalLM
+  - OlmoeForCausalLM
+  - OpenELMForCausalLM
+  - OpenJevModel
+  - OrionForCausalLM
+  - PLMForCausalLM
+  - PLaMo2ForCausalLM
+  - PLaMo3ForCausalLM
+  - PaddleOCRVLForConditionalGeneration
+  - PanguEmbeddedForCausalLM
+  - Phi3ForCausalLM
+  - Phi4ForCausalLMV
+  - PhiForCausalLM
+  - PhiMoEForCausalLM
+  - Plamo2ForCausalLM
+  - Plamo3ForCausalLM
+  - PlamoForCausalLM
+  - PocketTTSModel
+  - PplxDeciderModel
+  - QWenLMHeadModel
+  - Qwen2AudioForConditionalGeneration
+  - Qwen2ForCausalLM
+  - Qwen2Model
+  - Qwen2MoeForCausalLM
+  - Qwen2VLForConditionalGeneration
+  - Qwen2VLModel
+  - Qwen2_5OmniModel
+  - Qwen2_5_VLForConditionalGeneration
+  - Qwen3ASRForConditionalGeneration
+  - Qwen3DSparkModel
+  - Qwen3ForCausalLM
+  - Qwen3Model
+  - Qwen3MoeForCausalLM
+  - Qwen3NextForCausalLM
+  - Qwen3OmniMoeForConditionalGeneration
+  - Qwen3TTSForConditionalGeneration
+  - Qwen3VLForConditionalGeneration
+  - Qwen3VLMoeForConditionalGeneration
+  - Qwen3_5ForCausalLM
+  - Qwen3_5ForConditionalGeneration
+  - Qwen3_5MoeForCausalLM
+  - Qwen3_5MoeForConditionalGeneration
+  - Qwen3_5TextModel
+  - Qwen4ExpForCausalLM
+  - Qwen4ExpForConditionalGeneration
+  - RND1
+  - RWForCausalLM
+  - RWKV6Qwen2ForCausalLM
+  - RWKV7ForCausalLM
+  - RicursiveForCausalLM
+  - RobertaForSequenceClassification
+  - RobertaModel
+  - RuGPT3XLForCausalLM
+  - Rwkv6ForCausalLM
+  - Rwkv7ForCausalLM
+  - RwkvHybridForCausalLM
+  - Sarashina2VisionForCausalLM
+  - SarvamMoEForCausalLM
+  - SeedOssForCausalLM
+  - SmallThinkerForCausalLM
+  - SmolLM3ForCausalLM
+  - SolarOpenForCausalLM
+  - SopranoTextModel
+  - Spark2_5ForCausalLM
+  - StableLMEpochForCausalLM
+  - StableLmForCausalLM
+  - Starcoder2ForCausalLM
+  - Step3p5ForCausalLM
+  - Step3p7ForConditionalGeneration
+  - StepVLForConditionalGeneration
+  - T5EncoderModel
+  - T5ForConditionalGeneration
+  - T5WithLMHeadModel
+  - TalkieForCausalLM
+  - TinyVocaModel
+  - UMT5ForConditionalGeneration
+  - UMT5Model
+  - UltravoxModel
+  - UnlimitedOCRForCausalLM
+  - VLlama3ForCausalLM
+  - VibeVoiceAsrForConditionalGeneration
+  - VllmD3Model
+  - VllmDecision2Model
+  - VoxCPM2Model
+  - VoxtralForConditionalGeneration
+  - VoxtralRealtimeForConditionalGeneration
+  - WavTokenizerDec
+  - XLMRobertaForSequenceClassification
+  - XLMRobertaModel
+  - Xing4_0ForCausalLM
+  - XverseForCausalLM
+  - YoutuForCausalLM
+  - YoutuVLForConditionalGeneration
+  - YuE2ForCausalLM
+  - ZayaForCausalLM
+  - Zonos3Model
+  - fish_qwen3_omni
+  - modeling_grove_moe.GroveMoeForCausalLM
+  - modeling_sarvam_moe.SarvamMoEForCausalLM
+MMPROJ models:
+  - AudioFlamingo3ForConditionalGeneration
+  - BailingMoeV3VLForConditionalGeneration
+  - ChatterboxModel
+  - ClefModel
+  - CogVLMForCausalLM
+  - Cohere2VisionForConditionalGeneration
+  - D1OmniModel
+  - DeepseekOCR2ForCausalLM
+  - DeepseekOCRForCausalLM
+  - DeepseekV41ForCausalLM
+  - DeepseekV4ForCausalLM
+  - Dots3NoteForCausalLM
+  - Dots3NoteForConditionalGeneration
+  - DotsOCRForCausalLM
+  - EmbeddingGemma2Model
+  - Exaone4_5_ForConditionalGeneration
+  - FishOmniModel
+  - Gemma3ForConditionalGeneration
+  - Gemma3nForConditionalGeneration
+  - Gemma4ForConditionalGeneration
+  - Gemma4UnifiedForConditionalGeneration
+  - Glm4vForConditionalGeneration
+  - Glm4vMoeForConditionalGeneration
+  - Glm5NextForConditionalGeneration
+  - Glm5vForConditionalGeneration
+  - GlmOcrForConditionalGeneration
+  - GlmasrModel
+  - Granite4VisionForConditionalGeneration
+  - GraniteSpeechForConditionalGeneration
+  - GraniteSpeechPlusForConditionalGeneration
+  - H2OLightningModel
+  - HiggsAudio3Model
+  - HunYuanVLForConditionalGeneration
+  - Idefics3ForConditionalGeneration
+  - Inkling2ForConditionalGeneration
+  - InternVisionModel
+  - JanusForConditionalGeneration
+  - KimiK25ForConditionalGeneration
+  - KimiK31ForConditionalGeneration
+  - KimiVLForConditionalGeneration
+  - KokoroModel
+  - Lfm2AudioForConditionalGeneration
+  - Lfm2VlForConditionalGeneration
+  - Lfm3AudioForConditionalGeneration
+  - Lfm3OmniForConditionalGeneration
+  - Lfm3VlForConditionalGeneration
+  - LightOnOCRForConditionalGeneration
+  - Llama4ForConditionalGeneration
+  - LlavaForConditionalGeneration
+  - LlavaOnevision2ForConditionalGeneration
+  - MERaLiON2ForConditionalGeneration
+  - MiMoV2ForCausalLM
+  - MiniCPMOCRForSequenceClassification
+  - MiniCPMOcrForConditionalGeneration
+  - MiniCPMV4_6ForConditionalGeneration
+  - MiniCPMV4_7ForConditionalGeneration
+  - MiniMaxM3SparseForConditionalGeneration
+  - MiniMaxMusic3ForConditionalGeneration
+  - Mistral3ForConditionalGeneration
+  - Mistral3Model
+  - MuseGlimmerForConditionalGeneration
+  - MuseSparkForConditionalGeneration
+  - NEOVisionModel
+  - Nemotron3_5TranscribeForConditionalGeneration
+  - NemotronH_Nano_VL_V2
+  - NemotronH_Omni_Reasoning_V3
+  - OpenJevModel
+  - PaddleOCRVisionModel
+  - Phi4ForCausalLMV
+  - PocketTTSModel
+  - PplxDeciderModel
+  - Qwen2AudioForConditionalGeneration
+  - Qwen2VLForConditionalGeneration
+  - Qwen2VLModel
+  - Qwen2_5OmniModel
+  - Qwen2_5_VLForConditionalGeneration
+  - Qwen3ASRForConditionalGeneration
+  - Qwen3OmniMoeForConditionalGeneration
+  - Qwen3TTSForConditionalGeneration
+  - Qwen3VLForConditionalGeneration
+  - Qwen3VLMoeForConditionalGeneration
+  - Qwen3_5ForConditionalGeneration
+  - Qwen3_5MoeForConditionalGeneration
+  - Qwen4ExpForConditionalGeneration
+  - RADIOModel
+  - Sarashina2VisionForCausalLM
+  - SmolVLMForConditionalGeneration
+  - SopranoModel
+  - Step3p7ForConditionalGeneration
+  - StepVLForConditionalGeneration
+  - TinyVocaModel
+  - UltravoxModel
+  - UnlimitedOCRForCausalLM
+  - VibeVoiceAsrForConditionalGeneration
+  - VllmD3Model
+  - VoxCPM2Model
+  - VoxtralForConditionalGeneration
+  - VoxtralRealtimeForConditionalGeneration
+  - YoutuVLForConditionalGeneration
+  - YuE2ForCausalLM
+  - Zonos3Model
+  - fish_qwen3_omni
+PS D:\llama.cpp> @'
+>> from safetensors import safe_open
+>> from pathlib import Path
+>>
+>> root = Path(r"D:\AI-Models")
+>> targets = ("in_proj_a", "in_proj_b", "conv1d")
+>> found = set()
+>>
+>> for file in sorted(root.glob("model-*.safetensors")):
+>>     print(f"\n检查文件：{file.name}")
+>>     with safe_open(str(file), framework="pt", device="cpu") as f:
+>>         for key in f.keys():
+>>             if any(x in key for x in targets) and ("linear_attn" in key or "linear_attention" in key):
+>>                 if key not in found:
+>>                     print(key, f.get_slice(key).get_shape())
+>>                     found.add(key)
+>>
+>> print("\n共找到相关权重：", len(found))
+>> '@ | .\.venv\Scripts\python.exe -
+
+?????model-00001-of-00004.safetensors
+model.language_model.layers.0.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.0.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.0.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.1.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.1.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.1.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.2.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.2.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.2.linear_attn.in_proj_b.weight [32, 4096]
+
+?????model-00002-of-00004.safetensors
+model.language_model.layers.10.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.10.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.10.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.12.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.12.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.12.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.13.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.13.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.13.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.4.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.4.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.4.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.5.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.5.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.5.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.6.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.6.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.6.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.8.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.8.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.8.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.9.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.9.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.9.linear_attn.in_proj_b.weight [32, 4096]
+
+?????model-00003-of-00004.safetensors
+model.language_model.layers.14.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.14.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.14.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.16.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.16.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.16.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.17.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.17.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.17.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.18.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.18.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.18.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.20.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.20.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.20.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.21.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.21.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.21.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.22.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.22.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.22.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.24.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.24.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.24.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.25.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.25.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.25.linear_attn.in_proj_b.weight [32, 4096]
+
+?????model-00004-of-00004.safetensors
+model.language_model.layers.26.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.26.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.26.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.28.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.28.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.28.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.29.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.29.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.29.linear_attn.in_proj_b.weight [32, 4096]
+model.language_model.layers.30.linear_attn.conv1d.weight [8192, 1, 4]
+model.language_model.layers.30.linear_attn.in_proj_a.weight [32, 4096]
+model.language_model.layers.30.linear_attn.in_proj_b.weight [32, 4096]
+
+?????model-mtp.safetensors
+
+???????? 72
+PS D:\llama.cpp>
